@@ -592,6 +592,7 @@ th.sortable:hover {
       opacity: 0.88;
     }
 
+
     .access-gate {
       position: fixed;
       inset: 0;
@@ -601,44 +602,47 @@ th.sortable:hover {
       justify-content: center;
       padding: 24px;
       background:
-        linear-gradient(135deg, rgba(155, 0, 0, 0.96), rgba(197, 5, 12, 0.92)),
-        radial-gradient(circle at top left, rgba(255,255,255,0.18), transparent 36%);
+        linear-gradient(135deg, rgba(40, 39, 40, 0.98), rgba(155, 0, 0, 0.94)),
+        radial-gradient(circle at top left, rgba(255,255,255,0.16), transparent 34%);
     }
 
     .access-card {
-      width: min(560px, 100%);
+      width: min(680px, 100%);
       background: var(--panel);
       border-radius: 18px;
-      box-shadow: 0 24px 90px rgba(0,0,0,0.28);
+      box-shadow: 0 24px 90px rgba(0,0,0,0.32);
       overflow: hidden;
-      border: 1px solid rgba(255,255,255,0.32);
+      border: 1px solid rgba(255,255,255,0.28);
     }
 
     .access-card-head {
       background: linear-gradient(90deg, var(--brand-dark), var(--brand));
       color: white;
-      padding: 22px 24px;
+      padding: 24px 26px;
       border-bottom: 6px solid var(--charcoal);
     }
 
     .access-card-head h1 {
       margin: 0;
-      font-size: 24px;
+      font-size: 25px;
       color: white;
+      letter-spacing: -0.2px;
     }
 
     .access-card-head .subtitle {
-      margin-top: 6px;
+      margin-top: 7px;
       color: #f7d8da;
       font-size: 14px;
+      line-height: 1.35;
     }
 
     .access-card-body {
-      padding: 24px;
+      padding: 24px 26px 26px;
     }
 
     .access-card-body p {
       line-height: 1.45;
+      margin-top: 0;
     }
 
     .access-warning {
@@ -649,11 +653,28 @@ th.sortable:hover {
       border-radius: 12px;
       font-size: 13px;
       margin: 14px 0;
+      line-height: 1.4;
+    }
+
+    .access-upload {
+      border: 1px dashed #cbd5e1;
+      background: #f8fafc;
+      border-radius: 14px;
+      padding: 14px;
+      margin-top: 12px;
     }
 
     .access-error {
       display: none;
       color: var(--danger);
+      font-weight: 700;
+      margin-top: 10px;
+      font-size: 13px;
+    }
+
+    .access-success {
+      display: none;
+      color: var(--ok);
       font-weight: 700;
       margin-top: 10px;
       font-size: 13px;
@@ -670,7 +691,6 @@ th.sortable:hover {
     body.access-granted .access-gate {
       display: none;
     }
-
 
 
     @media (max-width: 900px) {
@@ -722,21 +742,31 @@ th.sortable:hover {
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </head>
 <body class="access-locked">
-  <div id=\"accessGate\" class=\"access-gate\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"accessGateTitle\">
-    <div class=\"access-card\">
-      <div class=\"access-card-head\">
-        <h1 id=\"accessGateTitle\">Community Partner CRM</h1>
-        <div class=\"subtitle\">UW Extension community asset mapping and relationship management tool</div>
+  <div id="accessGate" class="access-gate" role="dialog" aria-modal="true" aria-labelledby="accessGateTitle">
+    <div class="access-card">
+      <div class="access-card-head">
+        <h1 id="accessGateTitle">Community Partner CRM</h1>
+        <div class="subtitle">UW Extension community asset mapping and relationship management tool</div>
       </div>
-      <div class=\"access-card-body\">
+      <div class="access-card-body">
         <p><b>Internal planning use only.</b></p>
-        <p class=\"muted\">This app stores CRM data in this browser. The GitHub page hosts the tool, but exported JSON backups contain the actual records and should be kept in an approved private location.</p>
-        <div class=\"access-warning\"><b>Reminder:</b> Do not upload JSON backups, CSV exports, contact records, or partner notes to the public GitHub repository.</div>
-        <label for=\"accessPhrase\">Access phrase</label>
-        <input id=\"accessPhrase\" type=\"password\" autocomplete=\"off\" placeholder=\"Enter access phrase\" onkeydown=\"if(event.key === 'Enter') checkSoftAccess()\">
-        <div id=\"accessError\" class=\"access-error\">Access phrase not recognized.</div>
-        <div class=\"toolbar\" style=\"margin-top:16px; margin-bottom:0;\">
-          <button class=\"primary\" type=\"button\" onclick=\"checkSoftAccess()\">Continue</button>
+        <p class="muted">This page hosts the CRM tool. Your records are stored in this browser. Access keys are a soft gate for casual access, not a replacement for secure data storage.</p>
+        <div class="access-warning"><b>Reminder:</b> Keep JSON backups, CSV exports, contact records, and partner notes out of the public GitHub repository.</div>
+
+        <label for="accessPhrase">Access phrase</label>
+        <input id="accessPhrase" type="password" autocomplete="off" placeholder="Enter access phrase" onkeydown="if(event.key === 'Enter') checkSoftAccess()">
+
+        <div class="access-upload">
+          <label for="accessKeyFile">Or load an access key JSON</label>
+          <input id="accessKeyFile" type="file" accept="application/json,.json" onchange="loadAccessKeyFile(event)">
+          <p class="muted" style="font-size:13px; margin:8px 0 0;">After a valid key is loaded, this browser will remember access.</p>
+        </div>
+
+        <div id="accessError" class="access-error">Access phrase or access key not recognized.</div>
+        <div id="accessSuccess" class="access-success">Access confirmed. Opening CRM...</div>
+
+        <div class="toolbar" style="margin-top:16px; margin-bottom:0;">
+          <button class="primary" type="button" onclick="checkSoftAccess()">Continue</button>
         </div>
       </div>
     </div>
@@ -750,7 +780,7 @@ th.sortable:hover {
         <div class="subtitle">Relationship tracker for UW Extension Community Educators</div>
       </div>
     </div>
-    <button class="secondary" onclick="lockAccess()" title="Return to the access screen">Lock</button>
+    <button class="secondary" onclick="lockAccess(false)" title="Return to the access screen">Lock</button>
   </header>
 
   <div class="layout">
@@ -795,37 +825,98 @@ th.sortable:hover {
   <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 
   <script>
+
     const SOFT_ACCESS_PHRASE = 'fdl-assets';
+    const ACCESS_STORAGE_KEY = 'fdlCommunityCrmAccessGranted';
+    const ACCESS_KEY_TYPE = 'fdl-community-crm-access-key';
+
+    function showAccessMessage(kind, message) {
+      const error = document.getElementById('accessError');
+      const success = document.getElementById('accessSuccess');
+      if (error) {
+        error.style.display = kind === 'error' ? 'block' : 'none';
+        if (message && kind === 'error') error.textContent = message;
+      }
+      if (success) {
+        success.style.display = kind === 'success' ? 'block' : 'none';
+        if (message && kind === 'success') success.textContent = message;
+      }
+    }
+
+    function grantSoftAccess(remember = false) {
+      if (remember) localStorage.setItem(ACCESS_STORAGE_KEY, 'yes');
+      document.body.classList.remove('access-locked');
+      document.body.classList.add('access-granted');
+      showAccessMessage('success', 'Access confirmed. Opening CRM...');
+      const input = document.getElementById('accessPhrase');
+      if (input) input.value = '';
+    }
 
     function checkSoftAccess() {
       const input = document.getElementById('accessPhrase');
-      const error = document.getElementById('accessError');
       const entered = String(input?.value || '').trim();
       if (entered === SOFT_ACCESS_PHRASE) {
-        document.body.classList.remove('access-locked');
-        document.body.classList.add('access-granted');
-        if (error) error.style.display = 'none';
-        if (input) input.value = '';
+        grantSoftAccess(false);
         return;
       }
-      if (error) error.style.display = 'block';
+      showAccessMessage('error', 'Access phrase not recognized. Try the access phrase or load a valid access key JSON.');
       if (input) {
         input.focus();
         input.select();
       }
     }
 
-    function lockAccess() {
+    async function loadAccessKeyFile(event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      try {
+        const key = JSON.parse(await file.text());
+        if (key && key.accessKeyType === ACCESS_KEY_TYPE && key.token && String(key.token).length >= 20) {
+          localStorage.setItem(ACCESS_STORAGE_KEY, 'yes');
+          grantSoftAccess(true);
+          return;
+        }
+        showAccessMessage('error', 'That JSON file does not look like a valid CRM access key.');
+      } catch (err) {
+        showAccessMessage('error', 'Could not read that access key JSON file.');
+      } finally {
+        event.target.value = '';
+      }
+    }
+
+    function lockAccess(clearSaved = false) {
+      if (clearSaved) localStorage.removeItem(ACCESS_STORAGE_KEY);
       document.body.classList.remove('access-granted');
       document.body.classList.add('access-locked');
-      const gate = document.getElementById('accessGate');
-      if (gate) gate.style.display = 'flex';
+      showAccessMessage('', '');
       requestAnimationFrame(() => document.getElementById('accessPhrase')?.focus());
     }
 
-    window.addEventListener('DOMContentLoaded', () => {
-      requestAnimationFrame(() => document.getElementById('accessPhrase')?.focus());
-    });
+    function initializeSoftAccess() {
+      if (localStorage.getItem(ACCESS_STORAGE_KEY) === 'yes') {
+        grantSoftAccess(false);
+        return;
+      }
+      lockAccess(false);
+    }
+
+    function generateAccessKey() {
+      const token = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random())) + '-' + Math.random().toString(36).slice(2);
+      const key = {
+        accessKeyType: ACCESS_KEY_TYPE,
+        tool: 'Community Partner CRM',
+        createdAt: new Date().toISOString(),
+        note: 'Soft access key for this browser-based CRM. This is not a secure server-side credential.',
+        token
+      };
+      download(`fdl-community-crm-access-key-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(key, null, 2));
+    }
+
+    function clearSavedAccess() {
+      if (!confirm('Clear saved access for this browser? You will need the access phrase or an access key JSON next time.')) return;
+      localStorage.removeItem(ACCESS_STORAGE_KEY);
+      alert('Saved access cleared for this browser.');
+    }
 
     const DB_NAME = 'community_partner_crm_v1';
     const DB_VERSION = 2;
@@ -2286,6 +2377,8 @@ function sortArrow(field) {
           <p class="muted">Your data lives only in this browser on this computer. Export JSON weekly or whenever you do important work.</p>
           <div class="toolbar">
             <button class="primary" onclick="exportJSON()">Export JSON Backup</button>
+            <button class="secondary" onclick="generateAccessKey()">Generate Access Key JSON</button>
+            <button class="secondary" onclick="clearSavedAccess()">Clear Saved Access</button>
             <button class="secondary" onclick="exportCSV('organizations')">Export Organizations CSV</button>
             <button class="secondary" onclick="exportCSV('contacts')">Export Contacts CSV</button>
             <button class="secondary" onclick="exportCSV('activities')">Export Activities CSV</button>
@@ -2809,6 +2902,7 @@ function sortArrow(field) {
       await refresh();
     }
 
+    initializeSoftAccess();
     openDB().then(refresh).catch(err => alert('Could not open local database: ' + err.message));
   </script>
 </body>
