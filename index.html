@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>UW Extension Community Educator CRM</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%23c5050c%22/%3E%3Ccircle%20cx%3D%2232%22%20cy%3D%2218%22%20r%3D%227%22%20fill%3D%22%23fff%22/%3E%3Ccircle%20cx%3D%2218%22%20cy%3D%2244%22%20r%3D%227%22%20fill%3D%22%23fff%22/%3E%3Ccircle%20cx%3D%2246%22%20cy%3D%2244%22%20r%3D%227%22%20fill%3D%22%23fff%22/%3E%3Cpath%20d%3D%22M32%2025%20L18%2037%20M32%2025%20L46%2037%20M25%2044%20H39%22%20stroke%3D%22%23fff%22%20stroke-width%3D%225%22%20stroke-linecap%3D%22round%22/%3E%3Cpath%20d%3D%22M12%2055%20H52%22%20stroke%3D%22%23282728%22%20stroke-width%3D%225%22%20stroke-linecap%3D%22round%22%20opacity%3D%220.9%22/%3E%3C/svg%3E" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%23c5050c%22/%3E%3Ccircle%20cx%3D%2220%22%20cy%3D%2222%22%20r%3D%225%22%20fill%3D%22%23ffffff%22/%3E%3Ccircle%20cx%3D%2244%22%20cy%3D%2222%22%20r%3D%225%22%20fill%3D%22%23ffffff%22/%3E%3Ccircle%20cx%3D%2232%22%20cy%3D%2243%22%20r%3D%226%22%20fill%3D%22%23ffffff%22/%3E%3Cpath%20d%3D%22M24.5%2024.5%2029%2038M39.5%2024.5%2035%2038M25%2022h14%22%20stroke%3D%22%23ffffff%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22%20opacity%3D%22.9%22/%3E%3Ccircle%20cx%3D%2220%22%20cy%3D%2222%22%20r%3D%222%22%20fill%3D%22%23282728%22/%3E%3Ccircle%20cx%3D%2244%22%20cy%3D%2222%22%20r%3D%222%22%20fill%3D%22%23282728%22/%3E%3Ccircle%20cx%3D%2232%22%20cy%3D%2243%22%20r%3D%222.5%22%20fill%3D%22%23282728%22/%3E%3C/svg%3E" />
   <style>
     :root {
       --bg: #f7f7f7;
@@ -950,6 +950,25 @@ th.sortable:hover {
     const activityTypes = ['email', 'phone call', 'meeting', 'site visit', 'event', 'intro', 'follow-up'];
     const strengths = ['weak', 'moderate', 'strong'];
     const relStatuses = ['potential', 'active', 'historic'];
+    const geographicReachOptions = [
+      'Countywide',
+      'Regional / Multi-County',
+      'Multi-Community',
+      'School District',
+      'Library Service Area',
+      'Local Community / Area',
+      'Statewide',
+      'Unknown / Needs Verification'
+    ];
+    const reachConfidenceOptions = [
+      'Confirmed by website',
+      'Confirmed by direct conversation',
+      'Confirmed by public source',
+      'Likely based on mission/service description',
+      'Inferred from organization type',
+      'Needs verification',
+      'Unknown'
+    ];
     let pendingBulkOrgRows = [];
     let pendingBulkOrgUpdates = [];
     let selectedBulkOrgFieldKeys = new Set();
@@ -1052,6 +1071,13 @@ th.sortable:hover {
 
     function selectOptions(options, selected = '') {
       return options.map(o => `<option value="${esc(o)}" ${o === selected ? 'selected' : ''}>${esc(o)}</option>`).join('');
+    }
+
+    function selectOptionsWithCurrent(options, selected = '') {
+      const cleanSelected = String(selected || '').trim();
+      const merged = [...options];
+      if (cleanSelected && !merged.includes(cleanSelected)) merged.push(cleanSelected);
+      return merged.map(o => `<option value="${esc(o)}" ${o === cleanSelected ? 'selected' : ''}>${esc(o)}</option>`).join('');
     }
 
     function multiOrgOptions(selected = []) {
@@ -1310,7 +1336,7 @@ function sortArrow(field) {
       document.getElementById('organizations').innerHTML = `
         <div class="profile-title">
           <div><h2 style="margin-bottom:4px">${esc(o.name)}</h2><div class="muted">${esc(o.type || '')} ${o.city ? '• ' + esc(o.city) : ''}</div></div>
-          <div class="small-actions"><button class="secondary" onclick="renderOrganizations()">Back</button><button class="secondary" onclick="window.print()">Print</button><button class="primary" onclick="openContactModalForOrg('${id}')">Add Contact</button><button class="primary" onclick="openActivityModal(null, '${id}')">Add Activity</button><button class="primary" onclick="openRelationshipModal(null, '${id}')">Add Relationship</button></div>
+          <div class="small-actions"><button class="secondary" onclick="renderOrganizations()">Back</button><button class="secondary" onclick="openOrgModal('${id}')">Edit Organization</button><button class="secondary" onclick="window.print()">Print</button><button class="primary" onclick="openContactModalForOrg('${id}')">Add Contact</button><button class="primary" onclick="openActivityModal(null, '${id}')">Add Activity</button><button class="primary" onclick="openRelationshipModal(null, '${id}')">Add Relationship</button></div>
         </div>
         <div class="two-col">
           <div class="card"><h3>Profile</h3><p><b>Status:</b> ${esc(o.status || '')}</p><p><b>Website:</b> ${o.website ? `<a href="${esc(o.website)}" target="_blank">${esc(o.website)}</a>` : ''}</p><p><b>Contact:</b> ${esc(o.primaryContact || '')}<br>${esc(o.email || '')}<br>${esc(o.phone || '')}</p><p><b>Description:</b><br>${esc(o.description || '')}</p><p>${tagsHtml(o.tags)}</p><hr style="border:0;border-top:1px solid var(--line);margin:14px 0"><h3>Geographic Reach</h3><p><b>Reach:</b> ${esc(o.geographicReach || '')}</p><p><b>Communities Served:</b><br>${esc(o.communitiesServed || '')}</p><p><b>Confidence:</b> ${esc(o.reachConfidence || '')}</p><p><b>Basis:</b><br>${esc(o.reachBasis || '')}</p><p><b>Source:</b><br>${o.reachSourceUrl ? `<a href="${esc(o.reachSourceUrl)}" target="_blank">${esc(o.reachSourceUrl)}</a>` : ''}</p><p><b>Reach Notes:</b><br>${esc(o.reachNotes || '')}</p><p><b>Notes:</b><br>${esc(o.notes || '')}</p></div>
@@ -2714,8 +2740,8 @@ function sortArrow(field) {
           <div><label>Phone</label><input name="phone" value="${esc(o.phone || '')}"></div>
           <div><label>Latitude</label><input name="latitude" placeholder="Example: 43.7730" value="${esc(o.latitude || '')}"></div>
           <div><label>Longitude</label><input name="longitude" placeholder="Example: -88.4471" value="${esc(o.longitude || '')}"></div>
-          <div><label>Geographic Reach</label><input name="geographicReach" placeholder="Countywide, School District, Local Community..." value="${esc(o.geographicReach || '')}"></div>
-          <div><label>Reach Confidence</label><input name="reachConfidence" placeholder="Confirmed by website, Needs verification..." value="${esc(o.reachConfidence || '')}"></div>
+          <div><label>Geographic Reach</label><select name="geographicReach"><option value="">Select reach...</option>${selectOptionsWithCurrent(geographicReachOptions, o.geographicReach || '')}</select></div>
+          <div><label>Reach Confidence</label><select name="reachConfidence"><option value="">Select confidence...</option>${selectOptionsWithCurrent(reachConfidenceOptions, o.reachConfidence || '')}</select></div>
           <div class="full"><label>Communities Served</label><input name="communitiesServed" placeholder="Fond du Lac County, Ripon area, Waupun area..." value="${esc(o.communitiesServed || '')}"></div>
           <div class="full"><label>Reach Basis</label><input name="reachBasis" placeholder="Website, partner conversation, inferred from org type..." value="${esc(o.reachBasis || '')}"></div>
           <div class="full"><label>Reach Source URL</label><input name="reachSourceUrl" value="${esc(o.reachSourceUrl || '')}"></div>
