@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Redirecting...</title>
+  <script>
+    (function () {
+      var repoPath = '/fdl-community-crm/';
+      var path = window.location.pathname || '';
+      var item = path.indexOf(repoPath) === 0 ? path.slice(repoPath.length) : path.replace(/^\//, '');
+      item = decodeURIComponent(item || '').trim();
+
+      // GitHub Pages serves this file for bad relative links like:
+      // /fdl-community-crm/blandinehouse.org
+      // If the missing path looks like a bare website domain, send it to https://domain.
+      var looksLikeDomain = /^[a-z0-9.-]+\.[a-z]{2,}(\/.*)?$/i.test(item);
+      if (looksLikeDomain) {
+        window.location.replace('https://' + item);
+      }
+    })();
+  </script>
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; padding: 32px; color: #282728; }
+    a { color: #c5050c; }
+  </style>
+</head>
+<body>
+  <h1>Page not found</h1>
+  <p>If you clicked a website link from the CRM, it may need <code>https://</code> added to the saved organization record.</p>
+  <p><a href="/fdl-community-crm/">Return to the CRM</a></p>
+</body>
+</html>
