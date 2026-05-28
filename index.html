@@ -950,25 +950,8 @@ th.sortable:hover {
     const activityTypes = ['email', 'phone call', 'meeting', 'site visit', 'event', 'intro', 'follow-up'];
     const strengths = ['weak', 'moderate', 'strong'];
     const relStatuses = ['potential', 'active', 'historic'];
-    const geographicReachOptions = [
-      'Countywide',
-      'Regional / Multi-County',
-      'Multi-Community',
-      'School District',
-      'Library Service Area',
-      'Local Community / Area',
-      'Statewide',
-      'Unknown / Needs Verification'
-    ];
-    const reachConfidenceOptions = [
-      'Confirmed by website',
-      'Confirmed by direct conversation',
-      'Confirmed by public source',
-      'Likely based on mission/service description',
-      'Inferred from organization type',
-      'Needs verification',
-      'Unknown'
-    ];
+    const reachOptions = ['Countywide', 'Regional / Multi-County', 'Multi-Community', 'School District', 'Library Service Area', 'Local Community / Area', 'Statewide', 'Unknown / Needs Verification'];
+    const reachConfidenceOptions = ['Confirmed by website', 'Confirmed by direct conversation', 'Confirmed by public source', 'Likely based on mission/service description', 'Inferred from organization type', 'Needs verification', 'Unknown'];
     let pendingBulkOrgRows = [];
     let pendingBulkOrgUpdates = [];
     let selectedBulkOrgFieldKeys = new Set();
@@ -1073,11 +1056,8 @@ th.sortable:hover {
       return options.map(o => `<option value="${esc(o)}" ${o === selected ? 'selected' : ''}>${esc(o)}</option>`).join('');
     }
 
-    function selectOptionsWithCurrent(options, selected = '') {
-      const cleanSelected = String(selected || '').trim();
-      const merged = [...options];
-      if (cleanSelected && !merged.includes(cleanSelected)) merged.push(cleanSelected);
-      return merged.map(o => `<option value="${esc(o)}" ${o === cleanSelected ? 'selected' : ''}>${esc(o)}</option>`).join('');
+    function selectOptionsWithBlank(options, selected = '') {
+      return `<option value=""></option>` + selectOptions(options, selected);
     }
 
     function multiOrgOptions(selected = []) {
@@ -1336,7 +1316,7 @@ function sortArrow(field) {
       document.getElementById('organizations').innerHTML = `
         <div class="profile-title">
           <div><h2 style="margin-bottom:4px">${esc(o.name)}</h2><div class="muted">${esc(o.type || '')} ${o.city ? '• ' + esc(o.city) : ''}</div></div>
-          <div class="small-actions"><button class="secondary" onclick="renderOrganizations()">Back</button><button class="secondary" onclick="openOrgModal('${id}')">Edit Organization</button><button class="secondary" onclick="window.print()">Print</button><button class="primary" onclick="openContactModalForOrg('${id}')">Add Contact</button><button class="primary" onclick="openActivityModal(null, '${id}')">Add Activity</button><button class="primary" onclick="openRelationshipModal(null, '${id}')">Add Relationship</button></div>
+          <div class="small-actions"><button class="secondary" onclick="renderOrganizations()">Back</button><button class="secondary" onclick="window.print()">Print</button><button class="secondary" onclick="openOrgModal('${id}')">Edit Organization</button><button class="primary" onclick="openContactModalForOrg('${id}')">Add Contact</button><button class="primary" onclick="openActivityModal(null, '${id}')">Add Activity</button><button class="primary" onclick="openRelationshipModal(null, '${id}')">Add Relationship</button></div>
         </div>
         <div class="two-col">
           <div class="card"><h3>Profile</h3><p><b>Status:</b> ${esc(o.status || '')}</p><p><b>Website:</b> ${o.website ? `<a href="${esc(o.website)}" target="_blank">${esc(o.website)}</a>` : ''}</p><p><b>Contact:</b> ${esc(o.primaryContact || '')}<br>${esc(o.email || '')}<br>${esc(o.phone || '')}</p><p><b>Description:</b><br>${esc(o.description || '')}</p><p>${tagsHtml(o.tags)}</p><hr style="border:0;border-top:1px solid var(--line);margin:14px 0"><h3>Geographic Reach</h3><p><b>Reach:</b> ${esc(o.geographicReach || '')}</p><p><b>Communities Served:</b><br>${esc(o.communitiesServed || '')}</p><p><b>Confidence:</b> ${esc(o.reachConfidence || '')}</p><p><b>Basis:</b><br>${esc(o.reachBasis || '')}</p><p><b>Source:</b><br>${o.reachSourceUrl ? `<a href="${esc(o.reachSourceUrl)}" target="_blank">${esc(o.reachSourceUrl)}</a>` : ''}</p><p><b>Reach Notes:</b><br>${esc(o.reachNotes || '')}</p><p><b>Notes:</b><br>${esc(o.notes || '')}</p></div>
@@ -1715,7 +1695,7 @@ function sortArrow(field) {
 
       document.getElementById('map').innerHTML = `
         ${mapModeTabs()}
-        <div class="notice">Community Needs View groups organizations by Type and summarizes geographic reach inside each category.</div>
+        <div class="notice">Community Needs View groups organizations by Type and now summarizes geographic reach inside each category. This helps separate “we have providers” from “we have providers with actual local reach.”</div>
         <div class="needs-grid">
           ${entries.length ? entries.map(({ label, orgs }) => `
             <div class="need-card">
@@ -2133,7 +2113,7 @@ function sortArrow(field) {
         ${mapModeTabs()}
         <div class="notice">
           Geographic Map plots organizations using latitude/longitude when available, and falls back to approximate city-level placement when only a city is saved.
-          Type and reach-category filters, heat map, and gap overlay are meant for quick visual planning, not formal demographic analysis.
+          Type and reach-category filters, heat map, and gap overlay are meant for quick visual planning, not formal demographic analysis. Fond du Lac County boundary is shown automatically for reference.
         </div>
 
         <div class="geo-filter-row">
@@ -2178,7 +2158,8 @@ function sortArrow(field) {
           </div>
 
           <div class="geo-side-panel">
-            <h3 style="margin-top:0;">Map Legend</h3><p class="muted" style="font-size:13px;">Colors use the organization Type field. City-only and nearby overlapping locations are spread slightly, heat map shows concentration, and gap overlay flags cities with few or no visible mapped orgs.</p>
+            <h3 style="margin-top:0;">Map Legend</h3><p class="muted" style="font-size:13px;">Colors use the organization Type field. The Fond du Lac County boundary is outlined automatically. City-only and nearby overlapping locations are spread slightly, heat map shows concentration, and gap overlay flags cities with few or no visible mapped orgs.</p>
+            <div class="legend-item"><span class="legend-dot" style="background:transparent; border:3px solid #c5050c;"></span><span>Fond du Lac County boundary</span></div>
             ${[...tagGroups.keys()].sort((a,b) => a.localeCompare(b)).map(tag => `
               <div class="legend-item">
                 <span class="legend-dot" style="background:${tagColor(tag)}"></span>
@@ -2273,6 +2254,59 @@ function sortArrow(field) {
       });
     }
 
+    function fdlCountyFallbackBoundary() {
+      return {
+        type: 'Feature',
+        properties: { name: 'Fond du Lac County approximate boundary' },
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[
+            [-88.886, 43.548],
+            [-88.886, 43.894],
+            [-88.166, 43.894],
+            [-88.166, 43.548],
+            [-88.886, 43.548]
+          ]]
+        }
+      };
+    }
+
+    async function addFondDuLacCountyBoundary(map) {
+      const boundaryStyle = {
+        color: '#c5050c',
+        weight: 3,
+        opacity: 0.9,
+        fillColor: '#c5050c',
+        fillOpacity: 0.035,
+        dashArray: '8 6'
+      };
+
+      function addBoundaryLayer(feature, label = 'Fond du Lac County boundary') {
+        const layer = L.geoJSON(feature, { style: boundaryStyle }).addTo(map);
+        try {
+          layer.bindTooltip(label, { sticky: true });
+        } catch (err) {
+          console.warn('Could not bind boundary tooltip', err);
+        }
+        return layer;
+      }
+
+      try {
+        const url = 'https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/1/query?where=STATE%3D%2755%27%20AND%20COUNTY%3D%27039%27&outFields=NAME&outSR=4326&f=geojson';
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('County boundary request failed');
+        const data = await response.json();
+        if (data && data.features && data.features.length) {
+          addBoundaryLayer(data, 'Fond du Lac County boundary');
+          return;
+        }
+        throw new Error('County boundary response had no features');
+      } catch (err) {
+        console.warn('Using fallback Fond du Lac County boundary', err);
+        addBoundaryLayer(fdlCountyFallbackBoundary(), 'Fond du Lac County approximate boundary');
+      }
+    }
+
 
     function initializeGeoMap(mappedOrgs) {
       const container = document.getElementById('geoMap');
@@ -2292,6 +2326,8 @@ function sortArrow(field) {
         maxZoom: 19,
         attribution: '&copy; OpenStreetMap contributors'
       }).addTo(map);
+
+      addFondDuLacCountyBoundary(map);
 
       if (state.geoShowHeat && typeof L.heatLayer === 'function') {
         const heatPoints = mappedOrgs.map(org => {
@@ -2740,8 +2776,8 @@ function sortArrow(field) {
           <div><label>Phone</label><input name="phone" value="${esc(o.phone || '')}"></div>
           <div><label>Latitude</label><input name="latitude" placeholder="Example: 43.7730" value="${esc(o.latitude || '')}"></div>
           <div><label>Longitude</label><input name="longitude" placeholder="Example: -88.4471" value="${esc(o.longitude || '')}"></div>
-          <div><label>Geographic Reach</label><select name="geographicReach"><option value="">Select reach...</option>${selectOptionsWithCurrent(geographicReachOptions, o.geographicReach || '')}</select></div>
-          <div><label>Reach Confidence</label><select name="reachConfidence"><option value="">Select confidence...</option>${selectOptionsWithCurrent(reachConfidenceOptions, o.reachConfidence || '')}</select></div>
+          <div><label>Geographic Reach</label><select name="geographicReach">${selectOptionsWithBlank(reachOptions, o.geographicReach || '')}</select></div>
+          <div><label>Reach Confidence</label><select name="reachConfidence">${selectOptionsWithBlank(reachConfidenceOptions, o.reachConfidence || '')}</select></div>
           <div class="full"><label>Communities Served</label><input name="communitiesServed" placeholder="Fond du Lac County, Ripon area, Waupun area..." value="${esc(o.communitiesServed || '')}"></div>
           <div class="full"><label>Reach Basis</label><input name="reachBasis" placeholder="Website, partner conversation, inferred from org type..." value="${esc(o.reachBasis || '')}"></div>
           <div class="full"><label>Reach Source URL</label><input name="reachSourceUrl" value="${esc(o.reachSourceUrl || '')}"></div>
@@ -2754,6 +2790,7 @@ function sortArrow(field) {
         await put('organizations', Object.fromEntries([...fd.entries()].concat([['id', o.id]])));
         closeModal();
         await refresh();
+        if (id) requestAnimationFrame(() => showOrgProfile(o.id, true));
       });
     }
 
