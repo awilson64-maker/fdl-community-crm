@@ -82,6 +82,7 @@
         if (html.includes(oldGeoLayout)) html = html.replace(oldGeoLayout, newGeoLayout);
         if (!html.includes('.geo-map-layout.legend-hidden') && html.includes(geoLegendCssMarker)) html = html.replace(geoLegendCssMarker, geoLegendCssBlock + geoLegendCssMarker);
         if (!html.includes('Show Legend') && html.includes(oldGeoRefreshButton)) html = html.replace(oldGeoRefreshButton, newGeoRefreshButton);
+        html = html.replace('const isThin = count > 0 && count <= 2;', 'const isThin = false;');
         return html;
       }
 
