@@ -6,55 +6,29 @@
   <title>UW Extension Community Educator CRM</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%23c5050c%22/%3E%3Ccircle%20cx%3D%2220%22%20cy%3D%2222%22%20r%3D%225%22%20fill%3D%22%23ffffff%22/%3E%3Ccircle%20cx%3D%2244%22%20cy%3D%2222%22%20r%3D%225%22%20fill%3D%22%23ffffff%22/%3E%3Ccircle%20cx%3D%2232%22%20cy%3D%2243%22%20r%3D%226%22%20fill%3D%22%23ffffff%22/%3E%3Cpath%20d%3D%22M24.5%2024.5%2029%2038M39.5%2024.5%2035%2038M25%2022h14%22%20stroke%3D%22%23ffffff%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22%20opacity%3D%22.9%22/%3E%3Ccircle%20cx%3D%2220%22%20cy%3D%2222%22%20r%3D%222%22%20fill%3D%22%23282728%22/%3E%3Ccircle%20cx%3D%2244%22%20cy%3D%2222%22%20r%3D%222%22%20fill%3D%22%23282728%22/%3E%3Ccircle%20cx%3D%2232%22%20cy%3D%2243%22%20r%3D%222.5%22%20fill%3D%22%23282728%22/%3E%3C/svg%3E" />
   <style>
-    :root {
-      --brand: #c5050c;
-      --brand-dark: #9b0000;
-      --charcoal: #282728;
-      --muted: #646569;
-      --line: #dadfe1;
-      --panel: #ffffff;
-      --accent-red: #f7e7e8;
-    }
+    :root { --brand:#c5050c; --brand-dark:#9b0000; --charcoal:#282728; --muted:#646569; --line:#dadfe1; --panel:#fff; --accent-red:#f7e7e8; }
     * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      font-family: Arial, Helvetica, sans-serif;
-      color: var(--charcoal);
-      background: radial-gradient(circle at 18% 16%, rgba(255,255,255,0.18), transparent 30%), linear-gradient(135deg, var(--charcoal), var(--brand-dark));
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-    }
-    .loader-card { width: min(680px, 100%); background: var(--panel); border-radius: 18px; overflow: hidden; border: 1px solid rgba(255,255,255,0.25); box-shadow: 0 24px 90px rgba(0,0,0,0.32); }
-    .loader-head { background: linear-gradient(90deg, var(--brand-dark), var(--brand)); color: white; padding: 24px 26px; border-bottom: 6px solid var(--charcoal); }
-    .loader-head h1 { margin: 0; font-size: 25px; letter-spacing: -0.2px; }
-    .loader-head .subtitle { margin-top: 7px; color: #f7d8da; font-size: 14px; line-height: 1.35; }
-    .loader-body { padding: 26px; }
-    .loading-row { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
-    .spinner { width: 28px; height: 28px; border-radius: 999px; border: 4px solid var(--accent-red); border-top-color: var(--brand); animation: spin 0.9s linear infinite; flex: 0 0 auto; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .loading-title { font-size: 20px; font-weight: 800; margin: 0; }
-    .muted { color: var(--muted); line-height: 1.45; margin: 0; }
-    .bar { height: 8px; background: #eeeeee; border-radius: 999px; overflow: hidden; margin-top: 18px; border: 1px solid var(--line); }
-    .bar div { height: 100%; width: 42%; background: linear-gradient(90deg, var(--brand-dark), var(--brand)); border-radius: 999px; animation: glide 1.4s ease-in-out infinite alternate; }
-    @keyframes glide { from { transform: translateX(-15%); } to { transform: translateX(145%); } }
-    .fallback { display: none; margin-top: 16px; padding: 12px 14px; background: #fffbeb; border: 1px solid #fde68a; color: #78350f; border-radius: 12px; font-size: 13px; line-height: 1.4; }
+    body { margin:0; min-height:100vh; font-family:Arial, Helvetica, sans-serif; color:var(--charcoal); background:radial-gradient(circle at 18% 16%, rgba(255,255,255,.18), transparent 30%), linear-gradient(135deg, var(--charcoal), var(--brand-dark)); display:flex; align-items:center; justify-content:center; padding:24px; }
+    .loader-card { width:min(680px, 100%); background:var(--panel); border-radius:18px; overflow:hidden; border:1px solid rgba(255,255,255,.25); box-shadow:0 24px 90px rgba(0,0,0,.32); }
+    .loader-head { background:linear-gradient(90deg, var(--brand-dark), var(--brand)); color:white; padding:24px 26px; border-bottom:6px solid var(--charcoal); }
+    .loader-head h1 { margin:0; font-size:25px; letter-spacing:-.2px; }
+    .loader-head .subtitle { margin-top:7px; color:#f7d8da; font-size:14px; line-height:1.35; }
+    .loader-body { padding:26px; }
+    .loading-row { display:flex; align-items:center; gap:14px; margin-bottom:14px; }
+    .spinner { width:28px; height:28px; border-radius:999px; border:4px solid var(--accent-red); border-top-color:var(--brand); animation:spin .9s linear infinite; flex:0 0 auto; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .loading-title { font-size:20px; font-weight:800; margin:0; }
+    .muted { color:var(--muted); line-height:1.45; margin:0; }
+    .bar { height:8px; background:#eee; border-radius:999px; overflow:hidden; margin-top:18px; border:1px solid var(--line); }
+    .bar div { height:100%; width:42%; background:linear-gradient(90deg, var(--brand-dark), var(--brand)); border-radius:999px; animation:glide 1.4s ease-in-out infinite alternate; }
+    @keyframes glide { from { transform:translateX(-15%); } to { transform:translateX(145%); } }
+    .fallback { display:none; margin-top:16px; padding:12px 14px; background:#fffbeb; border:1px solid #fde68a; color:#78350f; border-radius:12px; font-size:13px; line-height:1.4; }
   </style>
 </head>
 <body>
   <section class="loader-card" aria-live="polite">
-    <div class="loader-head">
-      <h1>Community Partner CRM</h1>
-      <div class="subtitle">UW Extension community asset mapping and relationship management tool</div>
-    </div>
-    <div class="loader-body">
-      <div class="loading-row"><div class="spinner" aria-hidden="true"></div><p class="loading-title">Loading CRM workspace...</p></div>
-      <p class="muted">Preparing your browser-based records, relationship tools, service reach views, and Fond du Lac County map layer.</p>
-      <div class="bar"><div></div></div>
-      <div id="loadingFallback" class="fallback"><b>Still loading?</b> GitHub Pages or the raw source file may be taking a moment. A hard refresh usually knocks it loose.</div>
-    </div>
+    <div class="loader-head"><h1>Community Partner CRM</h1><div class="subtitle">UW Extension community asset mapping and relationship management tool</div></div>
+    <div class="loader-body"><div class="loading-row"><div class="spinner" aria-hidden="true"></div><p class="loading-title">Loading CRM workspace...</p></div><p class="muted">Preparing your browser-based records, relationship tools, service reach views, and Fond du Lac County map layer.</p><div class="bar"><div></div></div><div id="loadingFallback" class="fallback"><b>Still loading?</b> GitHub Pages or the raw source file may be taking a moment. A hard refresh usually knocks it loose.</div></div>
   </section>
 
   <script>
@@ -74,6 +48,40 @@
       const newGeoRefreshButton = '<button class="secondary" onclick="renderGeoMap()">Refresh Map</button>\n          <button class="secondary" onclick="state.geoLegendVisible = state.geoLegendVisible === false ? true : false; renderGeoMap()">${state.geoLegendVisible === false ? \'Show Legend\' : \'Hide Legend\'}</button>';
       const oldGeoLayout = '<div class="geo-map-layout">';
       const newGeoLayout = '<div class="geo-map-layout ${state.geoLegendVisible === false ? \'legend-hidden\' : \'\'}">';
+      const coveragePanelFunction = String.raw`function addGapOverlay(map, visibleMappedOrgs) {
+      const aliases = { 'mt calvary': 'mount calvary', 'saint cloud': 'st cloud' };
+      const normalizeCommunity = value => { const key = cleanCityName(value || ''); return aliases[key] || key; };
+      const countyCommunities = [
+        ['fond du lac', 'Fond du Lac'], ['north fond du lac', 'North Fond du Lac'], ['ripon', 'Ripon'], ['waupun', 'Waupun'], ['campbellsport', 'Campbellsport'], ['lomira', 'Lomira'], ['oakfield', 'Oakfield'], ['rosendale', 'Rosendale'], ['brandon', 'Brandon'], ['eden', 'Eden'], ['fairwater', 'Fairwater'], ['mount calvary', 'Mount Calvary'], ['st cloud', 'St. Cloud'], ['malone', 'Malone'], ['taycheedah', 'Taycheedah']
+      ];
+      function orgServesCommunity(org, communityKey) {
+        if (normalizeCommunity(org.city) === communityKey && orgCanMap(org)) return true;
+        const reach = reachBucketLabel(org).toLowerCase();
+        if (reach === 'countywide' || reach === 'regional / multi-county' || reach === 'statewide') return true;
+        return splitCommunities(org.communitiesServed || '').map(normalizeCommunity).includes(communityKey);
+      }
+      const rows = countyCommunities.map(([key, label]) => {
+        const serving = visibleMappedOrgs.filter(org => orgServesCommunity(org, key));
+        const local = serving.filter(org => normalizeCommunity(org.city) === key && orgCanMap(org)).length;
+        const broad = serving.filter(org => ['countywide', 'regional / multi-county', 'statewide'].includes(reachBucketLabel(org).toLowerCase())).length;
+        const named = serving.filter(org => splitCommunities(org.communitiesServed || '').map(normalizeCommunity).includes(key)).length;
+        const typeCounts = new Map();
+        serving.forEach(org => { const type = displayTagLabel(firstTag(org)); typeCounts.set(type, (typeCounts.get(type) || 0) + 1); });
+        const typeSummary = [...typeCounts.entries()].sort((a,b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([type, count]) => esc(type) + ': ' + count).join('<br>') || '<span class="muted">None shown</span>';
+        let read = 'Needs verification';
+        if (serving.length && local) read = 'Local presence plus service coverage';
+        else if (serving.length && (broad || named)) read = 'Covered by reach/service area';
+        return { label, local, broad, named, total: serving.length, typeSummary, read };
+      });
+      const control = L.control({ position: 'bottomleft' });
+      control.onAdd = function () {
+        const div = L.DomUtil.create('div', 'coverage-summary-panel');
+        div.style.background = 'rgba(255,255,255,0.96)'; div.style.border = '1px solid rgba(0,0,0,0.18)'; div.style.borderRadius = '14px'; div.style.boxShadow = '0 2px 12px rgba(0,0,0,0.22)'; div.style.padding = '12px'; div.style.maxWidth = '540px'; div.style.maxHeight = '340px'; div.style.overflow = 'auto'; div.style.fontSize = '12px';
+        div.innerHTML = '<div style="font-weight:800;font-size:14px;margin-bottom:6px;">Coverage Summary</div><div style="color:#646569;margin-bottom:8px;line-height:1.3;">Based on current filters. Counts local presence, countywide/regional/statewide reach, and named Communities Served.</div><table style="border-collapse:collapse;width:100%;background:white;"><thead><tr><th style="text-align:left;border-bottom:1px solid #dadfe1;padding:5px;">Community</th><th style="text-align:left;border-bottom:1px solid #dadfe1;padding:5px;">Coverage</th><th style="text-align:left;border-bottom:1px solid #dadfe1;padding:5px;">Org Types</th><th style="text-align:left;border-bottom:1px solid #dadfe1;padding:5px;">Read</th></tr></thead><tbody>' + rows.map(row => '<tr><td style="border-bottom:1px solid #eee;padding:5px;font-weight:700;">' + esc(row.label) + '</td><td style="border-bottom:1px solid #eee;padding:5px;">Total: ' + row.total + '<br>Local: ' + row.local + '<br>Reach: ' + row.broad + '<br>Named: ' + row.named + '</td><td style="border-bottom:1px solid #eee;padding:5px;">' + row.typeSummary + '</td><td style="border-bottom:1px solid #eee;padding:5px;">' + esc(row.read) + '</td></tr>').join('') + '</tbody></table>';
+        L.DomEvent.disableClickPropagation(div); L.DomEvent.disableScrollPropagation(div); return div;
+      };
+      control.addTo(map);
+    }`;
 
       function applyCrmPatches(html) {
         if (!html.includes('const organizationTypeOptions')) html = html.replace(marker, marker + typeOptionsBlock);
@@ -83,36 +91,22 @@
         if (!html.includes('.geo-map-layout.legend-hidden') && html.includes(geoLegendCssMarker)) html = html.replace(geoLegendCssMarker, geoLegendCssBlock + geoLegendCssMarker);
         if (!html.includes('Show Legend') && html.includes(oldGeoRefreshButton)) html = html.replace(oldGeoRefreshButton, newGeoRefreshButton);
         html = html.replace('const isThin = count > 0 && count <= 2;', 'const isThin = false;');
-        html = html.replace('cityFallbackEntries().forEach(city => {', 'cityFallbackEntries().filter(city => [\'fond du lac\',\'north fond du lac\',\'ripon\',\'waupun\',\'campbellsport\',\'lomira\',\'oakfield\',\'rosendale\',\'brandon\',\'eden\',\'fairwater\',\'mount calvary\',\'mt calvary\',\'st cloud\',\'saint cloud\',\'malone\',\'taycheedah\'].includes(city.key)).forEach(city => {');
-        html = html.replace("const label = isGap ? `${city.label}: no mapped orgs shown` : `${city.label}: ${count} org${count === 1 ? '' : 's'} shown`;", "const label = isGap ? `${city.label}: gap` : `${city.label}: ${count} org${count === 1 ? '' : 's'}`;");
+        html = html.replace('cityFallbackEntries().forEach(city => {', 'cityFallbackEntries().filter(city => [\'fond du lac\',\'north fond du lac\',\'ripon\',\'waupun\',\'campbellsport\',\'lomira\',\'oakfield\',\'rosendale\',\'brandon\',\'eden\',\'fairwater\',\'mount calvary\',\'st cloud\',\'malone\',\'taycheedah\'].includes(city.key)).forEach(city => {');
         html = html.replace("const label = isGap ? `${city.label}: no mapped orgs shown` : `${city.label}: ${count} org${count === 1 ? '' : 's'} shown`;", "const label = isGap ? `${city.label}: gap` : `${city.label}: ${count} org${count === 1 ? '' : 's'}`;");
         html = html.replace('const radius = isGap ? 6500 : 4200;', 'const radius = isGap ? 3200 : 2600;');
+        html = html.replace('addGapOverlay(map, mappedOrgs);', 'addGapOverlay(map, state.organizations.filter(orgMatchesGeoFilters));');
+        html = html.replace('<label class="checkline"><input type="checkbox" ${state.geoShowGaps ? \'checked\' : \'\'} onchange="state.geoShowGaps = this.checked; renderGeoMap()"> Gap overlay</label>', '<label class="checkline"><input type="checkbox" ${state.geoShowGaps ? \'checked\' : \'\'} onchange="state.geoShowGaps = this.checked; renderGeoMap()"> Coverage Summary</label>');
+        html = html.replace(/function addGapOverlay\(map, visibleMappedOrgs\) \{[\s\S]*?\n    function fdlCountyFallbackBoundary\(\)/, coveragePanelFunction + '\n\n    function fdlCountyFallbackBoundary()');
         return html;
       }
 
       function openCrm(html) {
         const delay = Math.max(0, minimumLoaderMs - (Date.now() - startedAt));
-        setTimeout(function () {
-          document.open();
-          document.write(applyCrmPatches(html));
-          document.close();
-        }, delay);
+        setTimeout(function () { document.open(); document.write(applyCrmPatches(html)); document.close(); }, delay);
       }
 
-      setTimeout(function () {
-        const fallback = document.getElementById('loadingFallback');
-        if (fallback) fallback.style.display = 'block';
-      }, 4500);
-
-      fetch(baseUrl, { cache: 'no-store' })
-        .then(response => {
-          if (!response.ok) throw new Error('Could not load CRM source file.');
-          return response.text();
-        })
-        .then(openCrm)
-        .catch(error => {
-          document.body.innerHTML = '<main style="font-family: Arial, sans-serif; padding: 32px; color: #282728; max-width: 720px; margin: 40px auto; background:#fff; border-radius:18px;"><h1>CRM could not load</h1><p>The CRM source file could not be loaded from GitHub. Try refreshing in a minute.</p><p style="color:#646569;">' + String(error.message || error) + '</p></main>';
-        });
+      setTimeout(function () { const fallback = document.getElementById('loadingFallback'); if (fallback) fallback.style.display = 'block'; }, 4500);
+      fetch(baseUrl, { cache: 'no-store' }).then(response => { if (!response.ok) throw new Error('Could not load CRM source file.'); return response.text(); }).then(openCrm).catch(error => { document.body.innerHTML = '<main style="font-family: Arial, sans-serif; padding: 32px; color: #282728; max-width: 720px; margin: 40px auto; background:#fff; border-radius:18px;"><h1>CRM could not load</h1><p>The CRM source file could not be loaded from GitHub. Try refreshing in a minute.</p><p style="color:#646569;">' + String(error.message || error) + '</p></main>'; });
     })();
   </script>
 </body>
