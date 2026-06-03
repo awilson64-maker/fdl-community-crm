@@ -18,18 +18,28 @@ jobs:
           from pathlib import Path
           path = Path('index.html')
           text = path.read_text(encoding='utf-8')
+
           old = "html = html.replace('cityFallbackEntries().forEach(city => {', 'cityFallbackEntries().filter(city => city.latitude >= 43.48 && city.latitude <= 43.96 && city.longitude >= -88.96 && city.longitude <= -88.09).forEach(city => {');"
           new = "html = html.replace('cityFallbackEntries().forEach(city => {', 'cityFallbackEntries().filter(city => [\\'fond du lac\\',\\'north fond du lac\\',\\'ripon\\',\\'waupun\\',\\'campbellsport\\',\\'lomira\\',\\'oakfield\\',\\'rosendale\\',\\'brandon\\',\\'eden\\',\\'fairwater\\',\\'mount calvary\\',\\'st cloud\\',\\'malone\\',\\'taycheedah\\'].includes(city.key)).forEach(city => {');"
           if old in text:
               text = text.replace(old, new, 1)
           else:
               print('Coordinate-box gap filter was not found or was already replaced.')
+
           old_label = "const label = isGap ? `${city.label}: no mapped orgs shown` : `${city.label}: ${count} org${count === 1 ? '' : 's'} shown`;"
           new_label = "const label = isGap ? `${city.label}: gap` : `${city.label}: ${count} org${count === 1 ? '' : 's'}`;"
           if "html = html.replace('const label = isGap ?" not in text:
               insertion = "        html = html.replace(" + repr(old_label) + ", " + repr(new_label) + ");\n"
               marker = "        return html;\n"
               text = text.replace(marker, insertion + marker, 1)
+
+          radius_old = "const radius = isGap ? 6500 : 4200;"
+          radius_new = "const radius = isGap ? 3200 : 2600;"
+          if "html = html.replace('const radius = isGap ? 6500" not in text:
+              insertion = "        html = html.replace(" + repr(radius_old) + ", " + repr(radius_new) + ");\n"
+              marker = "        return html;\n"
+              text = text.replace(marker, insertion + marker, 1)
+
           path.write_text(text, encoding='utf-8')
           PY
       - name: Commit changes
@@ -41,5 +51,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html
-          git commit -m "Normalize gap overlay communities and labels"
+          git commit -m "Reduce gap overlay circle size"
           git push
