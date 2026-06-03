@@ -40,6 +40,36 @@ jobs:
               marker = "        return html;\n"
               text = text.replace(marker, insertion + marker, 1)
 
+          city_count_old = """function cityMappedCount(cityKey, orgs) {
+      return orgs.filter(o => cleanCityName(o.city) === cityKey && orgCanMap(o)).length;
+    }"""
+          city_count_new = """function cityMappedCount(cityKey, orgs) {
+      const aliases = {
+        'mt calvary': 'mount calvary',
+        'saint cloud': 'st cloud'
+      };
+      const normalizeCommunity = value => {
+        const key = cleanCityName(value || '');
+        return aliases[key] || key;
+      };
+      const target = normalizeCommunity(cityKey);
+      return orgs.filter(o => {
+        if (normalizeCommunity(o.city) === target && orgCanMap(o)) return true;
+
+        const reach = reachBucketLabel(o).toLowerCase();
+        if (reach === 'countywide' || reach === 'regional / multi-county' || reach === 'statewide') return true;
+
+        const communities = splitCommunities(o.communitiesServed || '').map(normalizeCommunity);
+        if (communities.includes(target)) return true;
+
+        return false;
+      }).length;
+    }"""
+          if "html = html.replace('function cityMappedCount(cityKey" not in text:
+              insertion = "        html = html.replace(" + repr(city_count_old) + ", " + repr(city_count_new) + ");\n"
+              marker = "        return html;\n"
+              text = text.replace(marker, insertion + marker, 1)
+
           path.write_text(text, encoding='utf-8')
           PY
       - name: Commit changes
@@ -51,5 +81,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html
-          git commit -m "Reduce gap overlay circle size"
+          git commit -m "Use service reach for gap overlay"
           git push
