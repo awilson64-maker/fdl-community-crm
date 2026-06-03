@@ -83,6 +83,7 @@
         if (!html.includes('.geo-map-layout.legend-hidden') && html.includes(geoLegendCssMarker)) html = html.replace(geoLegendCssMarker, geoLegendCssBlock + geoLegendCssMarker);
         if (!html.includes('Show Legend') && html.includes(oldGeoRefreshButton)) html = html.replace(oldGeoRefreshButton, newGeoRefreshButton);
         html = html.replace('const isThin = count > 0 && count <= 2;', 'const isThin = false;');
+        html = html.replace('cityFallbackEntries().forEach(city => {', 'cityFallbackEntries().filter(city => city.latitude >= 43.54 && city.latitude <= 43.90 && city.longitude >= -88.89 && city.longitude <= -88.16).forEach(city => {');
         return html;
       }
 
