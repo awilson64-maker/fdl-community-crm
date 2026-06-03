@@ -19,31 +19,42 @@ jobs:
           path = Path('index.html')
           text = path.read_text(encoding='utf-8')
 
+          def insert_runtime_replace(wrapper_text, needle, replacement, unique):
+              if unique in wrapper_text:
+                  return wrapper_text
+              marker = "        return html;\n"
+              insertion = "        html = html.replace(" + repr(needle) + ", " + repr(replacement) + ");\n"
+              return wrapper_text.replace(marker, insertion + marker, 1)
+
+          def insert_runtime_regex_replace(wrapper_text, pattern, replacement, unique):
+              if unique in wrapper_text:
+                  return wrapper_text
+              marker = "        return html;\n"
+              insertion = "        html = html.replace(" + pattern + ", " + repr(replacement) + ");\n"
+              return wrapper_text.replace(marker, insertion + marker, 1)
+
           old = "html = html.replace('cityFallbackEntries().forEach(city => {', 'cityFallbackEntries().filter(city => city.latitude >= 43.48 && city.latitude <= 43.96 && city.longitude >= -88.96 && city.longitude <= -88.09).forEach(city => {');"
           new = "html = html.replace('cityFallbackEntries().forEach(city => {', 'cityFallbackEntries().filter(city => [\\'fond du lac\\',\\'north fond du lac\\',\\'ripon\\',\\'waupun\\',\\'campbellsport\\',\\'lomira\\',\\'oakfield\\',\\'rosendale\\',\\'brandon\\',\\'eden\\',\\'fairwater\\',\\'mount calvary\\',\\'st cloud\\',\\'malone\\',\\'taycheedah\\'].includes(city.key)).forEach(city => {');"
           if old in text:
               text = text.replace(old, new, 1)
-          else:
-              print('Coordinate-box gap filter was not found or was already replaced.')
 
           old_label = "const label = isGap ? `${city.label}: no mapped orgs shown` : `${city.label}: ${count} org${count === 1 ? '' : 's'} shown`;"
           new_label = "const label = isGap ? `${city.label}: gap` : `${city.label}: ${count} org${count === 1 ? '' : 's'}`;"
-          if "html = html.replace('const label = isGap ?" not in text:
-              insertion = "        html = html.replace(" + repr(old_label) + ", " + repr(new_label) + ");\n"
-              marker = "        return html;\n"
-              text = text.replace(marker, insertion + marker, 1)
+          text = insert_runtime_replace(text, old_label, new_label, "city.label}: gap")
 
           radius_old = "const radius = isGap ? 6500 : 4200;"
           radius_new = "const radius = isGap ? 3200 : 2600;"
-          if "html = html.replace('const radius = isGap ? 6500" not in text:
-              insertion = "        html = html.replace(" + repr(radius_old) + ", " + repr(radius_new) + ");\n"
-              marker = "        return html;\n"
-              text = text.replace(marker, insertion + marker, 1)
+          text = insert_runtime_replace(text, radius_old, radius_new, "const radius = isGap ? 3200")
 
-          city_count_old = """function cityMappedCount(cityKey, orgs) {
-      return orgs.filter(o => cleanCityName(o.city) === cityKey && orgCanMap(o)).length;
-    }"""
-          city_count_new = """function cityMappedCount(cityKey, orgs) {
+          gap_checkbox_old = "<label class=\"checkline\"><input type=\"checkbox\" ${state.geoShowGaps ? 'checked' : ''} onchange=\"state.geoShowGaps = this.checked; renderGeoMap()\"> Gap overlay</label>"
+          gap_checkbox_new = "<label class=\"checkline\"><input type=\"checkbox\" ${state.geoShowGaps ? 'checked' : ''} onchange=\"state.geoShowGaps = this.checked; renderGeoMap()\"> Coverage Summary</label>"
+          text = insert_runtime_replace(text, gap_checkbox_old, gap_checkbox_new, "Coverage Summary</label>")
+
+          call_old = "addGapOverlay(map, mappedOrgs);"
+          call_new = "addGapOverlay(map, state.organizations.filter(orgMatchesGeoFilters));"
+          text = insert_runtime_replace(text, call_old, call_new, "state.organizations.filter(orgMatchesGeoFilters)")
+
+          panel_function = r'''function addGapOverlay(map, visibleMappedOrgs) {
       const aliases = {
         'mt calvary': 'mount calvary',
         'saint cloud': 'st cloud'
@@ -52,23 +63,87 @@ jobs:
         const key = cleanCityName(value || '');
         return aliases[key] || key;
       };
-      const target = normalizeCommunity(cityKey);
-      return orgs.filter(o => {
-        if (normalizeCommunity(o.city) === target && orgCanMap(o)) return true;
+      const countyCommunities = [
+        ['fond du lac', 'Fond du Lac'],
+        ['north fond du lac', 'North Fond du Lac'],
+        ['ripon', 'Ripon'],
+        ['waupun', 'Waupun'],
+        ['campbellsport', 'Campbellsport'],
+        ['lomira', 'Lomira'],
+        ['oakfield', 'Oakfield'],
+        ['rosendale', 'Rosendale'],
+        ['brandon', 'Brandon'],
+        ['eden', 'Eden'],
+        ['fairwater', 'Fairwater'],
+        ['mount calvary', 'Mount Calvary'],
+        ['st cloud', 'St. Cloud'],
+        ['malone', 'Malone'],
+        ['taycheedah', 'Taycheedah']
+      ];
 
-        const reach = reachBucketLabel(o).toLowerCase();
-        if (reach === 'countywide' || reach === 'regional / multi-county' || reach === 'statewide') return true;
+      function orgServesCommunity(org, communityKey) {
+        if (normalizeCommunity(org.city) === communityKey && orgCanMap(org)) return 'Local';
+        const reach = reachBucketLabel(org).toLowerCase();
+        if (reach === 'countywide' || reach === 'regional / multi-county' || reach === 'statewide') return 'Broad reach';
+        const communities = splitCommunities(org.communitiesServed || '').map(normalizeCommunity);
+        if (communities.includes(communityKey)) return 'Named service area';
+        return '';
+      }
 
-        const communities = splitCommunities(o.communitiesServed || '').map(normalizeCommunity);
-        if (communities.includes(target)) return true;
+      const rows = countyCommunities.map(([key, label]) => {
+        const serving = visibleMappedOrgs.filter(org => orgServesCommunity(org, key));
+        const local = serving.filter(org => normalizeCommunity(org.city) === key && orgCanMap(org)).length;
+        const broad = serving.filter(org => {
+          const reach = reachBucketLabel(org).toLowerCase();
+          return reach === 'countywide' || reach === 'regional / multi-county' || reach === 'statewide';
+        }).length;
+        const named = serving.filter(org => splitCommunities(org.communitiesServed || '').map(normalizeCommunity).includes(key)).length;
+        const typeCounts = new Map();
+        serving.forEach(org => {
+          const type = displayTagLabel(firstTag(org));
+          typeCounts.set(type, (typeCounts.get(type) || 0) + 1);
+        });
+        const typeSummary = [...typeCounts.entries()]
+          .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+          .map(([type, count]) => `${esc(type)}: ${count}`)
+          .join('<br>') || '<span class="muted">None shown</span>';
+        let read = 'Needs verification';
+        if (serving.length && local) read = 'Local presence plus service coverage';
+        else if (serving.length && (broad || named)) read = 'Covered by reach/service area';
+        return { label, local, broad, named, total: serving.length, typeSummary, read };
+      });
 
-        return false;
-      }).length;
-    }"""
-          if "html = html.replace('function cityMappedCount(cityKey" not in text:
-              insertion = "        html = html.replace(" + repr(city_count_old) + ", " + repr(city_count_new) + ");\n"
-              marker = "        return html;\n"
-              text = text.replace(marker, insertion + marker, 1)
+      const control = L.control({ position: 'bottomleft' });
+      control.onAdd = function () {
+        const div = L.DomUtil.create('div', 'coverage-summary-panel');
+        div.style.background = 'rgba(255,255,255,0.96)';
+        div.style.border = '1px solid rgba(0,0,0,0.18)';
+        div.style.borderRadius = '14px';
+        div.style.boxShadow = '0 2px 12px rgba(0,0,0,0.22)';
+        div.style.padding = '12px';
+        div.style.maxWidth = '520px';
+        div.style.maxHeight = '330px';
+        div.style.overflow = 'auto';
+        div.style.fontSize = '12px';
+        div.innerHTML = '<div style="font-weight:800;font-size:14px;margin-bottom:6px;">Coverage Summary</div>' +
+          '<div style="color:#646569;margin-bottom:8px;line-height:1.3;">Based on current filters. Coverage counts physical local presence, countywide/regional/statewide reach, and named Communities Served.</div>' +
+          '<table style="border-collapse:collapse;width:100%;background:white;">' +
+          '<thead><tr><th style="text-align:left;border-bottom:1px solid #dadfe1;padding:5px;">Community</th><th style="text-align:left;border-bottom:1px solid #dadfe1;padding:5px;">Coverage</th><th style="text-align:left;border-bottom:1px solid #dadfe1;padding:5px;">Org Types</th><th style="text-align:left;border-bottom:1px solid #dadfe1;padding:5px;">Read</th></tr></thead>' +
+          '<tbody>' + rows.map(row => '<tr>' +
+            '<td style="border-bottom:1px solid #eee;padding:5px;font-weight:700;">' + esc(row.label) + '</td>' +
+            '<td style="border-bottom:1px solid #eee;padding:5px;">Total: ' + row.total + '<br>Local: ' + row.local + '<br>Reach: ' + row.broad + '<br>Named: ' + row.named + '</td>' +
+            '<td style="border-bottom:1px solid #eee;padding:5px;">' + row.typeSummary + '</td>' +
+            '<td style="border-bottom:1px solid #eee;padding:5px;">' + esc(row.read) + '</td>' +
+          '</tr>').join('') + '</tbody></table>';
+        L.DomEvent.disableClickPropagation(div);
+        L.DomEvent.disableScrollPropagation(div);
+        return div;
+      };
+      control.addTo(map);
+    }'''
+          regex_pattern = r"/function addGapOverlay\(map, visibleMappedOrgs\) \{[\s\S]*?\n    function fdlCountyFallbackBoundary\(\)/"
+          replacement = panel_function + "\n\n    function fdlCountyFallbackBoundary()"
+          text = insert_runtime_regex_replace(text, regex_pattern, replacement, "coverage-summary-panel")
 
           path.write_text(text, encoding='utf-8')
           PY
@@ -81,5 +156,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html
-          git commit -m "Use service reach for gap overlay"
+          git commit -m "Replace gap overlay with coverage summary"
           git push
