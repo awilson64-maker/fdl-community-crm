@@ -85,6 +85,8 @@
         html = html.replace('const isThin = count > 0 && count <= 2;', 'const isThin = false;');
         html = html.replace('cityFallbackEntries().forEach(city => {', 'cityFallbackEntries().filter(city => [\'fond du lac\',\'north fond du lac\',\'ripon\',\'waupun\',\'campbellsport\',\'lomira\',\'oakfield\',\'rosendale\',\'brandon\',\'eden\',\'fairwater\',\'mount calvary\',\'mt calvary\',\'st cloud\',\'saint cloud\',\'malone\',\'taycheedah\'].includes(city.key)).forEach(city => {');
         html = html.replace("const label = isGap ? `${city.label}: no mapped orgs shown` : `${city.label}: ${count} org${count === 1 ? '' : 's'} shown`;", "const label = isGap ? `${city.label}: gap` : `${city.label}: ${count} org${count === 1 ? '' : 's'}`;");
+        html = html.replace("const label = isGap ? `${city.label}: no mapped orgs shown` : `${city.label}: ${count} org${count === 1 ? '' : 's'} shown`;", "const label = isGap ? `${city.label}: gap` : `${city.label}: ${count} org${count === 1 ? '' : 's'}`;");
+        html = html.replace('const radius = isGap ? 6500 : 4200;', 'const radius = isGap ? 3200 : 2600;');
         return html;
       }
 
