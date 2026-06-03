@@ -83,7 +83,7 @@
         if (!html.includes('.geo-map-layout.legend-hidden') && html.includes(geoLegendCssMarker)) html = html.replace(geoLegendCssMarker, geoLegendCssBlock + geoLegendCssMarker);
         if (!html.includes('Show Legend') && html.includes(oldGeoRefreshButton)) html = html.replace(oldGeoRefreshButton, newGeoRefreshButton);
         html = html.replace('const isThin = count > 0 && count <= 2;', 'const isThin = false;');
-        html = html.replace('cityFallbackEntries().forEach(city => {', 'cityFallbackEntries().filter(city => city.latitude >= 43.48 && city.latitude <= 43.96 && city.longitude >= -88.96 && city.longitude <= -88.09).forEach(city => {');
+        html = html.replace('cityFallbackEntries().forEach(city => {', 'cityFallbackEntries().filter(city => [\'fond du lac\',\'north fond du lac\',\'ripon\',\'waupun\',\'campbellsport\',\'lomira\',\'oakfield\',\'rosendale\',\'brandon\',\'eden\',\'fairwater\',\'mount calvary\',\'mt calvary\',\'st cloud\',\'saint cloud\',\'malone\',\'taycheedah\'].includes(city.key)).forEach(city => {');
         return html;
       }
 
