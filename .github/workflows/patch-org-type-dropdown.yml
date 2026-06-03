@@ -1,9 +1,7 @@
-name: Patch CRM organization type dropdown
+name: Patch CRM runtime wrapper
 
 on:
   push:
-    paths:
-      - '.github/workflows/patch-org-type-dropdown.yml'
   workflow_dispatch:
 
 permissions:
@@ -14,119 +12,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Patch index.html
+      - name: Patch runtime wrapper
         run: |
           python3 <<'PY'
           from pathlib import Path
-          import re
-
           path = Path('index.html')
           text = path.read_text(encoding='utf-8')
-
-          type_options = [
-              'Aging & Disability Resource Center',
-              'Agriculture & Rural Development',
-              'Animal Welfare',
-              'Arts, Culture & Tourism',
-              'Basic Needs',
-              'Community Capacity Building',
-              'Disability & Independent Living',
-              'Economic & Community Development',
-              'Education & Community Access',
-              'Education & Literacy',
-              'Education / K-12',
-              'Family & Behavioral Support',
-              'Food Security',
-              'Funder/Foundation',
-              'Government / Human Services',
-              'Health, Behavioral Health & Recovery',
-              'Healthcare / Behavioral Health',
-              'Healthcare / Clinic',
-              'Healthcare / Hospital',
-              'Housing & Homelessness',
-              'Immigration & Multicultural Support',
-              'Legal / Advocacy',
-              'Library / Community Learning',
-              'Mental Health / Crisis',
-              'Municipal / Local Government',
-              'Nonprofit / Community Partner',
-              'Public Health',
-              'Public Safety',
-              'Recreation / Parks',
-              'Recovery / Substance Use',
-              'Regional Resource',
-              'School District',
-              'Senior Services',
-              'Transportation',
-              'UW Extension Program',
-              'Veterans Services',
-              'Workforce Development',
-              'Youth Development',
-          ]
-
-          if 'const organizationTypeOptions' not in text:
-              marker = "    const relStatuses = ['potential', 'active', 'historic'];\n"
-              block = marker + "    const organizationTypeOptions = [\n" + ''.join(f"      {value!r},\n" for value in type_options) + "    ];\n"
-              if marker not in text:
-                  raise SystemExit('Could not find relationship status marker.')
-              text = text.replace(marker, block, 1)
-
-          if 'function allOrganizationTypeOptions' not in text:
-              helper = r'''
-
-    function allOrganizationTypeOptions(selected = '') {
-      const typeMap = new Map();
-      organizationTypeOptions.forEach(type => {
-        const clean = String(type || '').trim();
-        if (clean) typeMap.set(normalizeTagKey(clean), clean);
-      });
-      state.organizations.forEach(org => {
-        const clean = String(org.type || '').trim();
-        if (clean) typeMap.set(normalizeTagKey(clean), clean);
-      });
-      const cleanSelected = String(selected || '').trim();
-      if (cleanSelected) typeMap.set(normalizeTagKey(cleanSelected), cleanSelected);
-      return [...typeMap.values()].sort((a, b) => a.localeCompare(b));
-    }
-
-    function addOrgTypeOption() {
-      const select = document.getElementById('orgTypeSelect');
-      if (!select) return;
-      const entered = prompt('Add new organization type/category:');
-      const clean = String(entered || '').trim().replace(/\s+/g, ' ');
-      if (!clean) return;
-      const existing = [...select.options].find(option => normalizeTagKey(option.value) === normalizeTagKey(clean));
-      if (existing) {
-        select.value = existing.value;
-        return;
-      }
-      const option = document.createElement('option');
-      option.value = clean;
-      option.textContent = clean;
-      select.appendChild(option);
-      select.value = clean;
-    }
-'''
-              patterns = [
-                r'(    function selectOptionsWithCurrent\(options, selected = \'\'\) \{.*?\n    \}\n)',
-                r'(    function selectOptionsWithBlank\(options, selected = \'\'\) \{.*?\n    \}\n)',
-                r'(    function selectOptions\(options, selected = \'\'\) \{.*?\n    \}\n)',
-              ]
-              for pattern in patterns:
-                  new_text, count = re.subn(pattern, r'\1' + helper, text, count=1, flags=re.S)
-                  if count:
-                      text = new_text
-                      break
-              else:
-                  raise SystemExit('Could not find selectOptions helper insertion point.')
-
-          old_type = '<div><label>Type</label><input name="type" value="${esc(o.type || \'\')}"></div>'
-          new_type = '<div><label>Type</label><select name="type" id="orgTypeSelect"><option value="">Select type...</option>${selectOptionsWithCurrent(allOrganizationTypeOptions(o.type || \'\'), o.type || \'\')}</select><button class="secondary" type="button" style="margin-top:8px;" onclick="addOrgTypeOption()">Add New Category</button></div>'
-          if old_type in text:
-              text = text.replace(old_type, new_type, 1)
-          elif 'id="orgTypeSelect"' not in text:
-              raise SystemExit('Could not find Type input to replace.')
-
+          old = "html = html.replace('cityFallbackEntries().forEach(city => {', 'cityFallbackEntries().filter(city => city.latitude >= 43.48 && city.latitude <= 43.96 && city.longitude >= -88.96 && city.longitude <= -88.09).forEach(city => {');"
+          new = "html = html.replace('cityFallbackEntries().forEach(city => {', 'cityFallbackEntries().filter(city => [\\'fond du lac\\',\\'north fond du lac\\',\\'ripon\\',\\'waupun\\',\\'campbellsport\\',\\'lomira\\',\\'oakfield\\',\\'rosendale\\',\\'brandon\\',\\'eden\\',\\'fairwater\\',\\'mount calvary\\',\\'st cloud\\',\\'malone\\',\\'taycheedah\\'].includes(city.key)).forEach(city => {');"
+          if old in text:
+              text = text.replace(old, new, 1)
+          else:
+              print('Coordinate-box gap filter was not found or was already replaced.')
+          old_label = "const label = isGap ? `${city.label}: no mapped orgs shown` : `${city.label}: ${count} org${count === 1 ? '' : 's'} shown`;"
+          new_label = "const label = isGap ? `${city.label}: gap` : `${city.label}: ${count} org${count === 1 ? '' : 's'}`;"
+          if "html = html.replace('const label = isGap ?" not in text:
+              insertion = "        html = html.replace(" + repr(old_label) + ", " + repr(new_label) + ");\n"
+              marker = "        return html;\n"
+              text = text.replace(marker, insertion + marker, 1)
           path.write_text(text, encoding='utf-8')
           PY
       - name: Commit changes
@@ -138,6 +41,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html
-          git commit -m "Make organization type a managed dropdown"
+          git commit -m "Normalize gap overlay communities and labels"
           git push
-# trigger: 2026-06-03-organization-type-dropdown
