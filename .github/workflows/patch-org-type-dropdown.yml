@@ -64,13 +64,13 @@ jobs:
               'Youth Development',
           ]
 
-          # Add base type categories after relationship status constants if not already present.
           if 'const organizationTypeOptions' not in text:
               marker = "    const relStatuses = ['potential', 'active', 'historic'];\n"
               block = marker + "    const organizationTypeOptions = [\n" + ''.join(f"      {value!r},\n" for value in type_options) + "    ];\n"
+              if marker not in text:
+                  raise SystemExit('Could not find relationship status marker.')
               text = text.replace(marker, block, 1)
 
-          # Add helper functions after selectOptionsWithCurrent or selectOptionsWithBlank/selectOptions.
           if 'function allOrganizationTypeOptions' not in text:
               helper = r'''
 
@@ -107,12 +107,18 @@ jobs:
       select.value = clean;
     }
 '''
-              if 'function selectOptionsWithCurrent' in text:
-                  text = re.sub(r'(    function selectOptionsWithCurrent\(options, selected = \'\'\) \{.*?\n    \}\n)', r'\1' + helper, text, count=1, flags=re.S)
-              elif 'function selectOptionsWithBlank' in text:
-                  text = re.sub(r'(    function selectOptionsWithBlank\(options, selected = \'\'\) \{.*?\n    \}\n)', r'\1' + helper, text, count=1, flags=re.S)
+              patterns = [
+                r'(    function selectOptionsWithCurrent\(options, selected = \'\'\) \{.*?\n    \}\n)',
+                r'(    function selectOptionsWithBlank\(options, selected = \'\'\) \{.*?\n    \}\n)',
+                r'(    function selectOptions\(options, selected = \'\'\) \{.*?\n    \}\n)',
+              ]
+              for pattern in patterns:
+                  new_text, count = re.subn(pattern, r'\1' + helper, text, count=1, flags=re.S)
+                  if count:
+                      text = new_text
+                      break
               else:
-                  text = re.sub(r'(    function selectOptions\(options, selected = \'\'\) \{.*?\n    \}\n)', r'\1' + helper, text, count=1, flags=re.S)
+                  raise SystemExit('Could not find selectOptions helper insertion point.')
 
           old_type = '<div><label>Type</label><input name="type" value="${esc(o.type || \'\')}"></div>'
           new_type = '<div><label>Type</label><select name="type" id="orgTypeSelect"><option value="">Select type...</option>${selectOptionsWithCurrent(allOrganizationTypeOptions(o.type || \'\'), o.type || \'\')}</select><button class="secondary" type="button" style="margin-top:8px;" onclick="addOrgTypeOption()">Add New Category</button></div>'
@@ -134,3 +140,4 @@ jobs:
           git add index.html
           git commit -m "Make organization type a managed dropdown"
           git push
+# trigger: 2026-06-03-organization-type-dropdown
