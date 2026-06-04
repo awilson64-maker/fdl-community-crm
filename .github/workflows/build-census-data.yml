@@ -207,14 +207,28 @@ jobs:
           print(f'Wrote {OUT_PATH} with {len(shapes["features"])} tracts using ACS {acs_year}.')
           PY
 
+      - name: Patch Service Gap Lens favicon link
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('census-gap-preview-v3.html')
+          html = path.read_text(encoding='utf-8')
+          if 'href="favicon.svg"' not in html:
+              html = html.replace('  <title>Service Gap Lens</title>\n', '  <title>Service Gap Lens</title>\n  <link rel="icon" type="image/svg+xml" href="favicon.svg" />\n')
+              path.write_text(html, encoding='utf-8')
+              print('Added favicon link to Service Gap Lens.')
+          else:
+              print('Service Gap Lens favicon link already present.')
+          PY
+
       - name: Commit updated Census data
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/fdl-census-tracts.json
+          git add data/fdl-census-tracts.json census-gap-preview-v3.html
           if git diff --cached --quiet; then
-            echo "No Census data changes to commit."
+            echo "No Census data or favicon changes to commit."
           else
-            git commit -m "Update static Census tract data"
+            git commit -m "Update static Census tract data and favicon link"
             git push
           fi
