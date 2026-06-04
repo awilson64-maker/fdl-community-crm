@@ -155,11 +155,11 @@ jobs:
           def fetch_tract_shapes():
               last_error = None
               where = urllib.parse.quote("STATE='55' AND COUNTY='039'")
-              layer_candidates = [2, 4, 8, 6, 14]
+              # TIGERweb Tracts_Blocks MapServer layer IDs: 0 = current Census Tracts, 7 = ACS 2024 Census Tracts, 10 = Census 2020 Census Tracts.
+              # Do not include layer 2 here; layer 2 is 2020 Census Blocks and creates thousands of tiny polygons.
+              layer_candidates = [7, 0, 10, 4]
               service_urls = [
-                  'https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Tracts_Blocks/MapServer',
-                  'https://tigerweb.geo.census.gov/arcgis/rest/services/Generalized_ACS2023/Tracts_Blocks/MapServer',
-                  'https://tigerweb.geo.census.gov/arcgis/rest/services/Generalized_ACS2022/Tracts_Blocks/MapServer'
+                  'https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Tracts_Blocks/MapServer'
               ]
               for service in service_urls:
                   for layer in layer_candidates:
@@ -170,7 +170,7 @@ jobs:
                               data = read_json(url)
                               shapes = normalize_geojson(data) if fmt == 'geojson' else esri_json_to_geojson(data)
                               if shapes['features']:
-                                  print(f'Using TIGERweb service {service}, layer {layer}, format {fmt}')
+                                  print(f'Using TIGERweb service {service}, layer {layer}, format {fmt}, features {len(shapes["features"])}')
                                   return shapes
                           except Exception as exc:
                               last_error = exc
@@ -178,6 +178,9 @@ jobs:
 
           acs_year, acs_by_geoid = fetch_acs()
           shapes = fetch_tract_shapes()
+
+          if len(shapes['features']) > 200:
+              raise RuntimeError(f'Expected tract-level geography but got {len(shapes["features"])} features. This probably means TIGERweb returned blocks or block groups.')
 
           for feature in shapes['features']:
               geoid = str(feature.get('properties', {}).get('GEOID', ''))
