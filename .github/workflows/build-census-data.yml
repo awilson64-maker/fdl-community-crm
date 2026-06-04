@@ -39,7 +39,7 @@ jobs:
           OUT_PATH = 'data/fdl-census-tracts.json'
           CENSUS_API_KEY = os.environ.get('CENSUS_API_KEY', '').strip()
 
-          ACS_VARS = [
+          CORE_VARS = [
               'NAME',
               'B17001_001E', 'B17001_002E',
               'B19013_001E',
@@ -55,10 +55,18 @@ jobs:
               'B28002_001E', 'B28002_013E',
               'C16002_001E', 'C16002_004E', 'C16002_007E', 'C16002_010E', 'C16002_013E'
           ]
+          EXTRA_VARS = [
+              'NAME',
+              'B17001_004E', 'B17001_005E', 'B17001_006E', 'B17001_007E', 'B17001_008E', 'B17001_009E',
+              'B17001_018E', 'B17001_019E', 'B17001_020E', 'B17001_021E', 'B17001_022E', 'B17001_023E',
+              'B17010_001E', 'B17010_004E', 'B17010_010E', 'B17010_015E'
+          ]
           CHILD_KEYS = ['B01001_003E', 'B01001_004E', 'B01001_005E', 'B01001_006E', 'B01001_027E', 'B01001_028E', 'B01001_029E', 'B01001_030E']
           SENIOR_KEYS = ['B01001_020E', 'B01001_021E', 'B01001_022E', 'B01001_023E', 'B01001_024E', 'B01001_025E', 'B01001_044E', 'B01001_045E', 'B01001_046E', 'B01001_047E', 'B01001_048E', 'B01001_049E']
+          CHILD_POVERTY_KEYS = ['B17001_004E', 'B17001_005E', 'B17001_006E', 'B17001_007E', 'B17001_008E', 'B17001_009E', 'B17001_018E', 'B17001_019E', 'B17001_020E', 'B17001_021E', 'B17001_022E', 'B17001_023E']
           RENT_BURDEN_KEYS = ['B25070_007E', 'B25070_008E', 'B25070_009E', 'B25070_010E']
           LIMITED_ENGLISH_KEYS = ['C16002_004E', 'C16002_007E', 'C16002_010E', 'C16002_013E']
+          FAMILY_POVERTY_WITH_CHILDREN_KEYS = ['B17010_004E', 'B17010_010E', 'B17010_015E']
 
           def read_text(url):
               req = urllib.request.Request(url, headers={'User-Agent': 'fdl-community-crm-census-builder/1.0'})
@@ -86,23 +94,70 @@ jobs:
                   return None
               return part / whole * 100
 
+          def fetch_acs_rows(year, variables):
+              url = (
+                  f'https://api.census.gov/data/{year}/acs/acs5?'
+                  f'get={",".join(variables)}&for=tract:*&in=state:{STATE}%20county:{COUNTY}&key={urllib.parse.quote(CENSUS_API_KEY)}'
+              )
+              rows = read_json(url)
+              headers = rows[0]
+              out = {}
+              for values in rows[1:]:
+                  item = dict(zip(headers, values))
+                  geoid = f"{item['state']}{item['county']}{item['tract']}"
+                  out[geoid] = item
+              return out
+
+          def normalize_series(rows, keys):
+              vals = [row.get(k) for row in rows.values() for k in keys]
+              vals = [v for v in vals if isinstance(v, (int, float))]
+              if not vals:
+                  return {geoid: None for geoid in rows}
+              mn, mx = min(vals), max(vals)
+              span = max(0.0001, mx - mn)
+              return {geoid: ((sum((row.get(k) or 0) for k in keys) / len(keys)) - mn) / span * 100 for geoid, row in rows.items()}
+
+          def add_composites(out):
+              metric_keys = ['poverty', 'children', 'childPoverty', 'noVehicle', 'senior', 'rentBurden', 'snap', 'noInternet', 'limitedEnglish']
+              ranges = {}
+              for key in metric_keys + ['income']:
+                  vals = [row.get(key) for row in out.values() if isinstance(row.get(key), (int, float))]
+                  if vals:
+                      ranges[key] = (min(vals), max(vals))
+              def score(row, key):
+                  value = row.get(key)
+                  if not isinstance(value, (int, float)) or key not in ranges:
+                      return None
+                  mn, mx = ranges[key]
+                  span = max(0.0001, mx - mn)
+                  s = (value - mn) / span * 100
+                  if key == 'income':
+                      s = 100 - s
+                  return s
+              def avg(row, keys):
+                  vals = [score(row, key) for key in keys]
+                  vals = [v for v in vals if isinstance(v, (int, float))]
+                  return sum(vals) / len(vals) if vals else None
+              for row in out.values():
+                  row['compositePovertyChildren'] = avg(row, ['poverty', 'children', 'childPoverty'])
+                  row['compositePovertyNoVehicle'] = avg(row, ['poverty', 'noVehicle'])
+                  row['compositeSeniorAccess'] = avg(row, ['senior', 'noVehicle'])
+                  row['compositeHousingPressure'] = avg(row, ['rentBurden', 'poverty', 'snap'])
+                  row['compositeDigitalAccess'] = avg(row, ['noInternet', 'poverty'])
+                  row['compositeLanguagePoverty'] = avg(row, ['limitedEnglish', 'poverty'])
+
           def fetch_acs():
               if not CENSUS_API_KEY:
                   raise RuntimeError('Missing CENSUS_API_KEY repository secret. Add it under Settings > Secrets and variables > Actions > New repository secret.')
               last_error = None
               for year in ACS_YEARS:
-                  url = (
-                      f'https://api.census.gov/data/{year}/acs/acs5?'
-                      f'get={",".join(ACS_VARS)}&for=tract:*&in=state:{STATE}%20county:{COUNTY}&key={urllib.parse.quote(CENSUS_API_KEY)}'
-                  )
                   try:
                       print(f'Trying ACS {year} with API key from repository secret.')
-                      rows = read_json(url)
-                      headers = rows[0]
+                      core = fetch_acs_rows(year, CORE_VARS)
+                      extra = fetch_acs_rows(year, EXTRA_VARS)
                       out = {}
-                      for values in rows[1:]:
-                          item = dict(zip(headers, values))
-                          geoid = f"{item['state']}{item['county']}{item['tract']}"
+                      for geoid, item in core.items():
+                          item.update(extra.get(geoid, {}))
                           poverty_base = num(item.get('B17001_001E'))
                           poverty_count = num(item.get('B17001_002E'))
                           households = num(item.get('B08201_001E'))
@@ -110,6 +165,7 @@ jobs:
                           total_pop = num(item.get('B01001_001E'))
                           child_count = sum(num(item.get(key)) or 0 for key in CHILD_KEYS)
                           senior_count = sum(num(item.get(key)) or 0 for key in SENIOR_KEYS)
+                          child_poverty_count = sum(num(item.get(key)) or 0 for key in CHILD_POVERTY_KEYS)
                           labor_force = num(item.get('B23025_003E'))
                           unemployed = num(item.get('B23025_005E'))
                           renter_households = num(item.get('B25070_001E'))
@@ -119,6 +175,8 @@ jobs:
                           no_internet = num(item.get('B28002_013E'))
                           language_households = num(item.get('C16002_001E'))
                           limited_english = sum(num(item.get(key)) or 0 for key in LIMITED_ENGLISH_KEYS)
+                          family_total = num(item.get('B17010_001E'))
+                          families_poverty_children = sum(num(item.get(key)) or 0 for key in FAMILY_POVERTY_WITH_CHILDREN_KEYS)
                           out[geoid] = {
                               'geoid': geoid,
                               'name': item.get('NAME', ''),
@@ -127,12 +185,15 @@ jobs:
                               'noVehicle': pct(no_vehicle, households),
                               'senior': pct(senior_count, total_pop),
                               'children': pct(child_count, total_pop),
+                              'childPoverty': pct(child_poverty_count, child_count),
+                              'familiesPovertyChildren': pct(families_poverty_children, family_total),
                               'unemployment': pct(unemployed, labor_force),
                               'rentBurden': pct(rent_burdened, renter_households),
                               'snap': pct(snap_households, households),
                               'noInternet': pct(no_internet, internet_households),
                               'limitedEnglish': pct(limited_english, language_households)
                           }
+                      add_composites(out)
                       return year, out
                   except Exception as exc:
                       print(f'ACS {year} failed: {exc}')
@@ -148,18 +209,7 @@ jobs:
                   geoid = str(attrs.get('GEOID') or attrs.get('GEOID20') or attrs.get('GEOID10') or '')
                   if not geoid.startswith('55039') or not rings:
                       continue
-                  features.append({
-                      'type': 'Feature',
-                      'properties': {
-                          'GEOID': geoid,
-                          'TRACT': str(attrs.get('TRACT') or attrs.get('TRACTCE') or attrs.get('TRACTCE20') or ''),
-                          'NAME': str(attrs.get('NAME') or attrs.get('BASENAME') or attrs.get('TRACT') or geoid)
-                      },
-                      'geometry': {
-                          'type': 'MultiPolygon',
-                          'coordinates': [[ring] for ring in rings]
-                      }
-                  })
+                  features.append({'type': 'Feature', 'properties': {'GEOID': geoid, 'TRACT': str(attrs.get('TRACT') or attrs.get('TRACTCE') or attrs.get('TRACTCE20') or ''), 'NAME': str(attrs.get('NAME') or attrs.get('BASENAME') or attrs.get('TRACT') or geoid)}, 'geometry': {'type': 'MultiPolygon', 'coordinates': [[ring] for ring in rings]}})
               return {'type': 'FeatureCollection', 'features': features}
 
           def normalize_geojson(data):
@@ -197,14 +247,11 @@ jobs:
 
           acs_year, acs_by_geoid = fetch_acs()
           shapes = fetch_tract_shapes()
-
           if len(shapes['features']) > 200:
               raise RuntimeError(f'Expected tract-level geography but got {len(shapes["features"])} features. This probably means TIGERweb returned blocks or block groups.')
-
           for feature in shapes['features']:
               geoid = str(feature.get('properties', {}).get('GEOID', ''))
               feature.setdefault('properties', {})['acs'] = acs_by_geoid.get(geoid, {})
-
           payload = {
               'source': 'U.S. Census Bureau ACS 5-year and TIGERweb',
               'acsYear': acs_year,
@@ -217,15 +264,22 @@ jobs:
                   'noVehicle': 'B08201_002E / B08201_001E',
                   'senior': 'B01001 age 65+ cells / B01001_001E',
                   'children': 'B01001 under age 18 cells / B01001_001E',
+                  'childPoverty': 'B17001 child below-poverty cells / B01001 under age 18 cells',
+                  'familiesPovertyChildren': 'B17010 families in poverty with related children under 18 / B17010_001E',
                   'unemployment': 'B23025_005E / B23025_003E',
                   'rentBurden': 'B25070 gross rent 30%+ of income cells / B25070_001E',
                   'snap': 'B22010_002E / B22010_001E',
                   'noInternet': 'B28002_013E / B28002_001E',
-                  'limitedEnglish': 'C16002 limited-English household cells / C16002_001E'
+                  'limitedEnglish': 'C16002 limited-English household cells / C16002_001E',
+                  'compositePovertyChildren': 'Composite score: poverty, children, child poverty',
+                  'compositePovertyNoVehicle': 'Composite score: poverty and no-vehicle households',
+                  'compositeSeniorAccess': 'Composite score: age 65+ and no-vehicle households',
+                  'compositeHousingPressure': 'Composite score: rent burden, poverty, and SNAP households',
+                  'compositeDigitalAccess': 'Composite score: no internet access and poverty',
+                  'compositeLanguagePoverty': 'Composite score: limited-English households and poverty'
               },
               'geojson': shapes
           }
-
           os.makedirs(os.path.dirname(OUT_PATH), exist_ok=True)
           with open(OUT_PATH, 'w', encoding='utf-8') as f:
               json.dump(payload, f, separators=(',', ':'))
@@ -240,14 +294,24 @@ jobs:
           html = path.read_text(encoding='utf-8')
           if 'href="favicon.svg"' not in html:
               html = html.replace('  <title>Service Gap Lens</title>\n', '  <title>Service Gap Lens</title>\n  <link rel="icon" type="image/svg+xml" href="favicon.svg" />\n')
-          old_options = '<select id="metricSelect" onchange="renderMap()"><option value="poverty">Poverty rate</option><option value="income">Median household income</option><option value="noVehicle">No-vehicle households</option><option value="senior">Age 65+</option></select>'
-          new_options = '<select id="metricSelect" onchange="renderMap()"><option value="poverty">Poverty rate</option><option value="income">Median household income</option><option value="noVehicle">No-vehicle households</option><option value="senior">Age 65+</option><option value="children">Children under 18</option><option value="unemployment">Unemployment rate</option><option value="rentBurden">Rent-burdened renters</option><option value="snap">SNAP households</option><option value="noInternet">No internet access</option><option value="limitedEnglish">Limited-English households</option></select>'
-          html = html.replace(old_options, new_options)
-          old_metrics = "const metrics={poverty:{label:'Poverty rate',suffix:'%',inverse:false},noVehicle:{label:'No-vehicle households',suffix:'%',inverse:false},senior:{label:'Age 65+',suffix:'%',inverse:false},income:{label:'Median household income',prefix:'$',inverse:true}};"
-          new_metrics = "const metrics={poverty:{label:'Poverty rate',suffix:'%',inverse:false},noVehicle:{label:'No-vehicle households',suffix:'%',inverse:false},senior:{label:'Age 65+',suffix:'%',inverse:false},income:{label:'Median household income',prefix:'$',inverse:true},children:{label:'Children under 18',suffix:'%',inverse:false},unemployment:{label:'Unemployment rate',suffix:'%',inverse:false},rentBurden:{label:'Rent-burdened renters',suffix:'%',inverse:false},snap:{label:'SNAP households',suffix:'%',inverse:false},noInternet:{label:'No internet access',suffix:'%',inverse:false},limitedEnglish:{label:'Limited-English households',suffix:'%',inverse:false}};"
-          html = html.replace(old_metrics, new_metrics)
+          start = '<select id="metricSelect" onchange="renderMap()">'
+          end = '</select></div>\n    <div class="control"><label>Service lens</label>'
+          if start in html and end in html:
+              before, rest = html.split(start, 1)
+              old, after = rest.split(end, 1)
+              new_select = start + '<optgroup label="Direct ACS indicators"><option value="poverty">Poverty rate</option><option value="childPoverty">Child poverty rate</option><option value="familiesPovertyChildren">Families in poverty with children</option><option value="income">Median household income</option><option value="noVehicle">No-vehicle households</option><option value="senior">Age 65+</option><option value="children">Children under 18</option><option value="unemployment">Unemployment rate</option><option value="rentBurden">Rent-burdened renters</option><option value="snap">SNAP households</option><option value="noInternet">No internet access</option><option value="limitedEnglish">Limited-English households</option></optgroup><optgroup label="Composite need scores"><option value="compositePovertyChildren">Poverty + children score</option><option value="compositePovertyNoVehicle">Poverty + no vehicle score</option><option value="compositeSeniorAccess">Senior access score</option><option value="compositeHousingPressure">Housing pressure score</option><option value="compositeDigitalAccess">Digital access score</option><option value="compositeLanguagePoverty">Language + poverty score</option></optgroup>' + end
+              html = before + new_select + after
+          old_metrics_marker = 'const metrics={'
+          old_lenses_marker = 'const lenses={'
+          if old_metrics_marker in html and old_lenses_marker in html:
+              before, rest = html.split(old_metrics_marker, 1)
+              old_metrics, after = rest.split(old_lenses_marker, 1)
+              new_metrics = "const metrics={poverty:{label:'Poverty rate',suffix:'%',inverse:false},childPoverty:{label:'Child poverty rate',suffix:'%',inverse:false},familiesPovertyChildren:{label:'Families in poverty with children',suffix:'%',inverse:false},noVehicle:{label:'No-vehicle households',suffix:'%',inverse:false},senior:{label:'Age 65+',suffix:'%',inverse:false},income:{label:'Median household income',prefix:'$',inverse:true},children:{label:'Children under 18',suffix:'%',inverse:false},unemployment:{label:'Unemployment rate',suffix:'%',inverse:false},rentBurden:{label:'Rent-burdened renters',suffix:'%',inverse:false},snap:{label:'SNAP households',suffix:'%',inverse:false},noInternet:{label:'No internet access',suffix:'%',inverse:false},limitedEnglish:{label:'Limited-English households',suffix:'%',inverse:false},compositePovertyChildren:{label:'Poverty + children score',suffix:' / 100',inverse:false},compositePovertyNoVehicle:{label:'Poverty + no vehicle score',suffix:' / 100',inverse:false},compositeSeniorAccess:{label:'Senior access score',suffix:' / 100',inverse:false},compositeHousingPressure:{label:'Housing pressure score',suffix:' / 100',inverse:false},compositeDigitalAccess:{label:'Digital access score',suffix:' / 100',inverse:false},compositeLanguagePoverty:{label:'Language + poverty score',suffix:' / 100',inverse:false}};\n"
+              html = before + new_metrics + old_lenses_marker + after
+          html = html.replace("function valueForMetric(feature,key){const acs=acsForFeature(feature);return key==='poverty'?acs.poverty:key==='noVehicle'?acs.noVehicle:key==='senior'?acs.senior:acs.income;}", "function valueForMetric(feature,key){const acs=acsForFeature(feature);return acs[key];}")
+          html = html.replace("return metric.prefix?metric.prefix+Math.round(v).toLocaleString():Number(v).toFixed(1)+(metric.suffix||'');", "return metric.prefix?metric.prefix+Math.round(v).toLocaleString():(metric.suffix&&metric.suffix.includes('/ 100')?Number(v).toFixed(0)+metric.suffix:Number(v).toFixed(1)+(metric.suffix||''));")
           path.write_text(html, encoding='utf-8')
-          print('Patched Service Gap Lens indicators.')
+          print('Patched Service Gap Lens cross-tab and composite layers.')
           PY
 
       - name: Commit updated Census data
