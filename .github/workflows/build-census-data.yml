@@ -45,13 +45,20 @@ jobs:
               'B19013_001E',
               'B08201_001E', 'B08201_002E',
               'B01001_001E',
+              'B01001_003E', 'B01001_004E', 'B01001_005E', 'B01001_006E',
+              'B01001_027E', 'B01001_028E', 'B01001_029E', 'B01001_030E',
               'B01001_020E', 'B01001_021E', 'B01001_022E', 'B01001_023E', 'B01001_024E', 'B01001_025E',
-              'B01001_044E', 'B01001_045E', 'B01001_046E', 'B01001_047E', 'B01001_048E', 'B01001_049E'
+              'B01001_044E', 'B01001_045E', 'B01001_046E', 'B01001_047E', 'B01001_048E', 'B01001_049E',
+              'B23025_003E', 'B23025_005E',
+              'B25070_001E', 'B25070_007E', 'B25070_008E', 'B25070_009E', 'B25070_010E',
+              'B22010_001E', 'B22010_002E',
+              'B28002_001E', 'B28002_013E',
+              'C16002_001E', 'C16002_004E', 'C16002_007E', 'C16002_010E', 'C16002_013E'
           ]
-          SENIOR_KEYS = [
-              'B01001_020E', 'B01001_021E', 'B01001_022E', 'B01001_023E', 'B01001_024E', 'B01001_025E',
-              'B01001_044E', 'B01001_045E', 'B01001_046E', 'B01001_047E', 'B01001_048E', 'B01001_049E'
-          ]
+          CHILD_KEYS = ['B01001_003E', 'B01001_004E', 'B01001_005E', 'B01001_006E', 'B01001_027E', 'B01001_028E', 'B01001_029E', 'B01001_030E']
+          SENIOR_KEYS = ['B01001_020E', 'B01001_021E', 'B01001_022E', 'B01001_023E', 'B01001_024E', 'B01001_025E', 'B01001_044E', 'B01001_045E', 'B01001_046E', 'B01001_047E', 'B01001_048E', 'B01001_049E']
+          RENT_BURDEN_KEYS = ['B25070_007E', 'B25070_008E', 'B25070_009E', 'B25070_010E']
+          LIMITED_ENGLISH_KEYS = ['C16002_004E', 'C16002_007E', 'C16002_010E', 'C16002_013E']
 
           def read_text(url):
               req = urllib.request.Request(url, headers={'User-Agent': 'fdl-community-crm-census-builder/1.0'})
@@ -101,14 +108,30 @@ jobs:
                           households = num(item.get('B08201_001E'))
                           no_vehicle = num(item.get('B08201_002E'))
                           total_pop = num(item.get('B01001_001E'))
+                          child_count = sum(num(item.get(key)) or 0 for key in CHILD_KEYS)
                           senior_count = sum(num(item.get(key)) or 0 for key in SENIOR_KEYS)
+                          labor_force = num(item.get('B23025_003E'))
+                          unemployed = num(item.get('B23025_005E'))
+                          renter_households = num(item.get('B25070_001E'))
+                          rent_burdened = sum(num(item.get(key)) or 0 for key in RENT_BURDEN_KEYS)
+                          snap_households = num(item.get('B22010_002E'))
+                          internet_households = num(item.get('B28002_001E'))
+                          no_internet = num(item.get('B28002_013E'))
+                          language_households = num(item.get('C16002_001E'))
+                          limited_english = sum(num(item.get(key)) or 0 for key in LIMITED_ENGLISH_KEYS)
                           out[geoid] = {
                               'geoid': geoid,
                               'name': item.get('NAME', ''),
                               'poverty': pct(poverty_count, poverty_base),
                               'income': num(item.get('B19013_001E')),
                               'noVehicle': pct(no_vehicle, households),
-                              'senior': pct(senior_count, total_pop)
+                              'senior': pct(senior_count, total_pop),
+                              'children': pct(child_count, total_pop),
+                              'unemployment': pct(unemployed, labor_force),
+                              'rentBurden': pct(rent_burdened, renter_households),
+                              'snap': pct(snap_households, households),
+                              'noInternet': pct(no_internet, internet_households),
+                              'limitedEnglish': pct(limited_english, language_households)
                           }
                       return year, out
                   except Exception as exc:
@@ -155,12 +178,8 @@ jobs:
           def fetch_tract_shapes():
               last_error = None
               where = urllib.parse.quote("STATE='55' AND COUNTY='039'")
-              # TIGERweb Tracts_Blocks MapServer layer IDs: 0 = current Census Tracts, 7 = ACS 2024 Census Tracts, 10 = Census 2020 Census Tracts.
-              # Do not include layer 2 here; layer 2 is 2020 Census Blocks and creates thousands of tiny polygons.
               layer_candidates = [7, 0, 10, 4]
-              service_urls = [
-                  'https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Tracts_Blocks/MapServer'
-              ]
+              service_urls = ['https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Tracts_Blocks/MapServer']
               for service in service_urls:
                   for layer in layer_candidates:
                       base = f'{service}/{layer}/query?where={where}&outFields=*&outSR=4326&returnGeometry=true'
@@ -196,7 +215,13 @@ jobs:
                   'poverty': 'B17001_002E / B17001_001E',
                   'income': 'B19013_001E',
                   'noVehicle': 'B08201_002E / B08201_001E',
-                  'senior': 'B01001 age 65+ cells / B01001_001E'
+                  'senior': 'B01001 age 65+ cells / B01001_001E',
+                  'children': 'B01001 under age 18 cells / B01001_001E',
+                  'unemployment': 'B23025_005E / B23025_003E',
+                  'rentBurden': 'B25070 gross rent 30%+ of income cells / B25070_001E',
+                  'snap': 'B22010_002E / B22010_001E',
+                  'noInternet': 'B28002_013E / B28002_001E',
+                  'limitedEnglish': 'C16002 limited-English household cells / C16002_001E'
               },
               'geojson': shapes
           }
@@ -207,7 +232,7 @@ jobs:
           print(f'Wrote {OUT_PATH} with {len(shapes["features"])} tracts using ACS {acs_year}.')
           PY
 
-      - name: Patch Service Gap Lens favicon link
+      - name: Patch Service Gap Lens page
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -215,10 +240,14 @@ jobs:
           html = path.read_text(encoding='utf-8')
           if 'href="favicon.svg"' not in html:
               html = html.replace('  <title>Service Gap Lens</title>\n', '  <title>Service Gap Lens</title>\n  <link rel="icon" type="image/svg+xml" href="favicon.svg" />\n')
-              path.write_text(html, encoding='utf-8')
-              print('Added favicon link to Service Gap Lens.')
-          else:
-              print('Service Gap Lens favicon link already present.')
+          old_options = '<select id="metricSelect" onchange="renderMap()"><option value="poverty">Poverty rate</option><option value="income">Median household income</option><option value="noVehicle">No-vehicle households</option><option value="senior">Age 65+</option></select>'
+          new_options = '<select id="metricSelect" onchange="renderMap()"><option value="poverty">Poverty rate</option><option value="income">Median household income</option><option value="noVehicle">No-vehicle households</option><option value="senior">Age 65+</option><option value="children">Children under 18</option><option value="unemployment">Unemployment rate</option><option value="rentBurden">Rent-burdened renters</option><option value="snap">SNAP households</option><option value="noInternet">No internet access</option><option value="limitedEnglish">Limited-English households</option></select>'
+          html = html.replace(old_options, new_options)
+          old_metrics = "const metrics={poverty:{label:'Poverty rate',suffix:'%',inverse:false},noVehicle:{label:'No-vehicle households',suffix:'%',inverse:false},senior:{label:'Age 65+',suffix:'%',inverse:false},income:{label:'Median household income',prefix:'$',inverse:true}};"
+          new_metrics = "const metrics={poverty:{label:'Poverty rate',suffix:'%',inverse:false},noVehicle:{label:'No-vehicle households',suffix:'%',inverse:false},senior:{label:'Age 65+',suffix:'%',inverse:false},income:{label:'Median household income',prefix:'$',inverse:true},children:{label:'Children under 18',suffix:'%',inverse:false},unemployment:{label:'Unemployment rate',suffix:'%',inverse:false},rentBurden:{label:'Rent-burdened renters',suffix:'%',inverse:false},snap:{label:'SNAP households',suffix:'%',inverse:false},noInternet:{label:'No internet access',suffix:'%',inverse:false},limitedEnglish:{label:'Limited-English households',suffix:'%',inverse:false}};"
+          html = html.replace(old_metrics, new_metrics)
+          path.write_text(html, encoding='utf-8')
+          print('Patched Service Gap Lens indicators.')
           PY
 
       - name: Commit updated Census data
@@ -227,8 +256,8 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data/fdl-census-tracts.json census-gap-preview-v3.html
           if git diff --cached --quiet; then
-            echo "No Census data or favicon changes to commit."
+            echo "No Census data or page changes to commit."
           else
-            git commit -m "Update static Census tract data and favicon link"
+            git commit -m "Update static Census tract data and Service Gap Lens indicators"
             git push
           fi
