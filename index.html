@@ -48,6 +48,100 @@
       const newGeoRefreshButton = '<button class="secondary" onclick="renderGeoMap()">Refresh Map</button>\n          <button class="secondary" onclick="state.geoLegendVisible = state.geoLegendVisible === false ? true : false; renderGeoMap()">${state.geoLegendVisible === false ? \'Show Legend\' : \'Hide Legend\'}</button>';
       const oldGeoLayout = '<div class="geo-map-layout">';
       const newGeoLayout = '<div class="geo-map-layout ${state.geoLegendVisible === false ? \'legend-hidden\' : \'\'}">';
+      const bulkStateMarker = "    let pendingBulkOrgUpdates = [];\n    let selectedBulkOrgFieldKeys = new Set();";
+      const bulkStateReplacement = "    let pendingBulkOrgUpdates = [];\n    let pendingBulkOrgImportRows = [];\n    let pendingBulkOrgImports = [];\n    let selectedBulkOrgFieldKeys = new Set();";
+      const bulkImportCard = "\n\n        <div class=\"card\" style=\"margin-top:16px;\">\n          <h2>Bulk Upload New Organizations</h2>\n          <p class=\"muted\">Upload a CSV of new organization records, preview what will be created, then append them to the existing browser-stored CRM data. Existing records are preserved.</p>\n          <div class=\"notice\"><b>Safety check:</b> This import creates new organization records only. Rows that appear to match an existing organization will be flagged as possible duplicates and skipped by default.</div>\n          <div class=\"form-grid\">\n            <div class=\"full\">\n              <label>CSV file for new organizations</label>\n              <input type=\"file\" accept=\".csv,text/csv\" onchange=\"previewBulkOrgImport(event)\" />\n            </div>\n          </div>\n          <p class=\"muted\" style=\"font-size:13px;\">Uses the same organization fields as manual entry and bulk update: name, type, status, address, city, county, website, phone, email, contacts, latitude, longitude, tags, mission/description, notes, reach fields, and geocode source.</p>\n          <div id=\"bulkOrgImportPreview\" style=\"margin-top:14px;\"></div>\n        </div>";
+      const bulkImportCardMarker = "          <div id=\"bulkOrgUpdatePreview\" style=\"margin-top:14px;\"></div>\n        </div>`;";
+      const bulkImportCardReplacement = "          <div id=\"bulkOrgUpdatePreview\" style=\"margin-top:14px;\"></div>\n        </div>" + bulkImportCard + "`;";
+      const bulkImportFunctions = [
+"    function importedOrgDuplicate(row) {",
+"      const existing = findOrgForBulkRow(row);",
+"      if (existing) return existing;",
+"      const name = normalizeBulkKey(getCsvValue(row, ['Organization Name', 'Name', 'organizationName', 'name']));",
+"      const address = normalizeBulkKey(getCsvValue(row, ['Address', 'Street Address', 'Full Address', 'address']));",
+"      if (!name) return null;",
+"      const matches = state.organizations.filter(o => normalizeBulkKey(o.name) === name);",
+"      if (matches.length === 1 && address && normalizeBulkKey(matches[0].address) === address) return matches[0];",
+"      return null;",
+"    }",
+"",
+"    function buildImportedOrgFromRow(row) {",
+"      const org = { id: uid() };",
+"      organizationBulkFieldCatalog.forEach(field => {",
+"        const value = String(getCsvValue(row, field.aliases) ?? '').trim();",
+"        org[field.key] = value;",
+"      });",
+"      if (!org.status) org.status = 'research only';",
+"      if (!org.county) org.county = 'Fond du Lac';",
+"      return org;",
+"    }",
+"",
+"    function buildBulkOrgImports(rows) {",
+"      return rows.map((row, index) => {",
+"        const org = buildImportedOrgFromRow(row);",
+"        const duplicate = importedOrgDuplicate(row);",
+"        const missingName = !String(org.name || '').trim();",
+"        const importable = !duplicate && !missingName;",
+"        return { index: index + 2, row, org, duplicate, missingName, importable };",
+"      });",
+"    }",
+"",
+"    async function previewBulkOrgImport(event) {",
+"      const file = event.target.files[0];",
+"      if (!file) return;",
+"      const text = await file.text();",
+"      pendingBulkOrgImportRows = csvRowsToObjects(text);",
+"      pendingBulkOrgImports = buildBulkOrgImports(pendingBulkOrgImportRows);",
+"      renderBulkOrgImportPreview();",
+"    }",
+"",
+"    function renderBulkOrgImportPreview() {",
+"      const el = document.getElementById('bulkOrgImportPreview');",
+"      if (!el) return;",
+"      const total = pendingBulkOrgImports.length;",
+"      const importable = pendingBulkOrgImports.filter(item => item.importable).length;",
+"      const duplicate = pendingBulkOrgImports.filter(item => item.duplicate).length;",
+"      const missingName = pendingBulkOrgImports.filter(item => item.missingName).length;",
+"      const detected = detectBulkFields(pendingBulkOrgImportRows);",
+"      const previewItems = pendingBulkOrgImports.slice(0, 100);",
+"      const rowsHtml = previewItems.length ? previewItems.map(item => {",
+"        let status = '<span style=\"color:var(--ok);font-weight:700;\">Ready to import</span>';",
+"        if (item.duplicate) status = '<span style=\"color:var(--warn);font-weight:700;\">Possible duplicate, skipped</span><br><span class=\"muted\">Matches: ' + esc(item.duplicate.name || '') + '</span>';",
+"        if (item.missingName) status = '<span style=\"color:var(--danger);font-weight:700;\">Missing organization name, skipped</span>';",
+"        const fieldSummary = detected.map(field => '<p style=\"margin:0 0 6px\"><b>' + esc(field.label) + ':</b> ' + esc(item.org[field.key] || '(blank)') + '</p>').join('');",
+"        return '<tr>' +",
+"          '<td>' + item.index + '</td>' +",
+"          '<td><b>' + esc(item.org.name || '(blank)') + '</b><br><span class=\"muted\">' + esc(item.org.city || '') + (item.org.type ? ' • ' + esc(item.org.type) : '') + '</span></td>' +",
+"          '<td>' + status + '</td>' +",
+"          '<td>' + (fieldSummary || '<span class=\"muted\">No compatible fields found.</span>') + '</td>' +",
+"        '</tr>';",
+"      }).join('') : '<tr><td colspan=\"4\" class=\"muted\">Choose a CSV file to preview new organization records.</td></tr>';",
+"      el.innerHTML = '<div class=\"geocode-status\" style=\"display:block;\">' +",
+"        '<strong>Preview:</strong> ' + total + ' CSV row' + (total === 1 ? '' : 's') + ', ' + importable + ' ready to import, ' + duplicate + ' possible duplicate' + (duplicate === 1 ? '' : 's') + ', ' + missingName + ' missing name' + (missingName === 1 ? '' : 's') + '.' +",
+"        '</div>' +",
+"        '<div class=\"toolbar\">' +",
+"          '<button class=\"primary\" onclick=\"applyBulkOrgImports()\" ' + (importable ? '' : 'disabled') + '>Import New Organizations</button>' +",
+"          '<button class=\"secondary\" onclick=\"pendingBulkOrgImportRows = []; pendingBulkOrgImports = []; renderBackup();\">Clear Preview</button>' +",
+"        '</div>' +",
+"        '<div class=\"table-wrapper\" style=\"max-height:420px;\"><table><thead><tr><th>CSV Row</th><th>New Organization</th><th>Status</th><th>Fields Detected</th></tr></thead><tbody>' + rowsHtml + '</tbody></table></div>' +",
+"        (pendingBulkOrgImports.length > previewItems.length ? '<p class=\"muted\" style=\"font-size:13px;\">Showing first ' + previewItems.length + ' rows. The full import set will still be applied.</p>' : '');",
+"    }",
+"",
+"    async function applyBulkOrgImports() {",
+"      const imports = pendingBulkOrgImports.filter(item => item.importable);",
+"      if (!imports.length) return alert('No new organization records are ready to import.');",
+"      const ok = confirm('Import ' + imports.length + ' new organization record' + (imports.length === 1 ? '' : 's') + '? Existing CRM records will be preserved. Export a JSON backup first if you have not already.');",
+"      if (!ok) return;",
+"      for (const item of imports) await put('organizations', item.org);",
+"      pendingBulkOrgImportRows = [];",
+"      pendingBulkOrgImports = [];",
+"      await refresh();",
+"      navTo('backup', true);",
+"      alert('Bulk upload complete. Added ' + imports.length + ' new organization record' + (imports.length === 1 ? '' : 's') + '.');",
+"    }",
+""
+      ].join('\n');
+      const openModalMarker = "    function openModal(title, body, onSubmit) {";
       const coveragePanelFunction = String.raw`function addGapOverlay(map, visibleMappedOrgs) {
       const aliases = { 'mt calvary': 'mount calvary', 'saint cloud': 'st cloud' };
       const normalizeCommunity = value => { const key = cleanCityName(value || ''); return aliases[key] || key; };
@@ -94,6 +188,9 @@
         if (html.includes(oldGeoLayout)) html = html.replace(oldGeoLayout, newGeoLayout);
         if (!html.includes('.geo-map-layout.legend-hidden') && html.includes(geoLegendCssMarker)) html = html.replace(geoLegendCssMarker, geoLegendCssBlock + geoLegendCssMarker);
         if (!html.includes('Show Legend') && html.includes(oldGeoRefreshButton)) html = html.replace(oldGeoRefreshButton, newGeoRefreshButton);
+        if (!html.includes('pendingBulkOrgImports') && html.includes(bulkStateMarker)) html = html.replace(bulkStateMarker, bulkStateReplacement);
+        if (!html.includes('Bulk Upload New Organizations') && html.includes(bulkImportCardMarker)) html = html.replace(bulkImportCardMarker, bulkImportCardReplacement);
+        if (!html.includes('function previewBulkOrgImport') && html.includes(openModalMarker)) html = html.replace(openModalMarker, bulkImportFunctions + '\n' + openModalMarker);
         html = html.replace('const isThin = count > 0 && count <= 2;', 'const isThin = false;');
         html = html.replace('cityFallbackEntries().forEach(city => {', 'cityFallbackEntries().filter(city => [\'fond du lac\',\'north fond du lac\',\'ripon\',\'waupun\',\'campbellsport\',\'lomira\',\'oakfield\',\'rosendale\',\'brandon\',\'eden\',\'fairwater\',\'mount calvary\',\'st cloud\',\'malone\',\'taycheedah\'].includes(city.key)).forEach(city => {');
         html = html.replace('<button class="primary" onclick="batchGeocodeMissingOrgs()" ${state.geocodeRunning ? \'disabled\' : \'\'}>Try Exact Address Geocoding</button>\n          ', '');
