@@ -2,6 +2,10 @@ name: Build FDL Census Data
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/build-census-data.yml'
+      - 'data/census-build-trigger.txt'
 
 permissions:
   contents: write
