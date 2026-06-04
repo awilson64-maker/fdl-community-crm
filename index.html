@@ -33,175 +33,22 @@
 
   <script>
     (function () {
-      const startedAt = Date.now();
-      const minimumLoaderMs = 650;
-      const baseUrl = 'https://raw.githubusercontent.com/awilson64-maker/fdl-community-crm/c982205df659eb2f8a8c0f5327b5d311dfea12fc/index.html';
-      const marker = "    const relStatuses = ['potential', 'active', 'historic'];\n";
-      const typeOptionsBlock = "    const organizationTypeOptions = [\n      'Aging & Disability Resource Center',\n      'Agriculture & Rural Development',\n      'Animal Welfare',\n      'Arts, Culture & Tourism',\n      'Basic Needs',\n      'Community Capacity Building',\n      'Disability & Independent Living',\n      'Economic & Community Development',\n      'Education & Community Access',\n      'Education & Literacy',\n      'Education / K-12',\n      'Family & Behavioral Support',\n      'Food Security',\n      'Funder/Foundation',\n      'Government / Human Services',\n      'Health, Behavioral Health & Recovery',\n      'Healthcare / Behavioral Health',\n      'Healthcare / Clinic',\n      'Healthcare / Hospital',\n      'Housing & Homelessness',\n      'Immigration & Multicultural Support',\n      'Legal / Advocacy',\n      'Library / Community Learning',\n      'Mental Health / Crisis',\n      'Municipal / Local Government',\n      'Nonprofit / Community Partner',\n      'Public Health',\n      'Public Safety',\n      'Recreation / Parks',\n      'Recovery / Substance Use',\n      'Regional Resource',\n      'School District',\n      'Senior Services',\n      'Transportation',\n      'UW Extension Program',\n      'Veterans Services',\n      'Workforce Development',\n      'Youth Development'\n    ];\n";
-      const selectBlankBlock = "    function selectOptionsWithBlank(options, selected = '') {\n      return `<option value=\"\"></option>` + selectOptions(options, selected);\n    }\n";
-      const helperBlock = "\n\n\n    function selectOptionsWithCurrent(options, selected = '') {\n      const selectedClean = String(selected || '').trim();\n      const values = new Map();\n      (options || []).forEach(option => {\n        const clean = String(option || '').trim().replace(/\\s+/g, ' ');\n        if (clean) values.set(normalizeTagKey(clean), clean);\n      });\n      if (selectedClean) values.set(normalizeTagKey(selectedClean), selectedClean);\n      return [...values.values()].sort((a, b) => a.localeCompare(b)).map(o => `<option value=\"${esc(o)}\" ${normalizeTagKey(o) === normalizeTagKey(selectedClean) ? 'selected' : ''}>${esc(o)}</option>`).join('');\n    }\n\n    function allOrganizationTypeOptions(selected = '') {\n      const typeMap = new Map();\n      organizationTypeOptions.forEach(type => { const clean = String(type || '').trim().replace(/\\s+/g, ' '); if (clean) typeMap.set(normalizeTagKey(clean), clean); });\n      state.organizations.forEach(org => { const clean = String(org.type || '').trim().replace(/\\s+/g, ' '); if (clean) typeMap.set(normalizeTagKey(clean), clean); });\n      const cleanSelected = String(selected || '').trim().replace(/\\s+/g, ' ');\n      if (cleanSelected) typeMap.set(normalizeTagKey(cleanSelected), cleanSelected);\n      return [...typeMap.values()].sort((a, b) => a.localeCompare(b));\n    }\n\n    function addOrgTypeOption() {\n      const select = document.getElementById('orgTypeSelect'); if (!select) return;\n      const entered = prompt('Add new organization type/category:');\n      const clean = String(entered || '').trim().replace(/\\s+/g, ' ');\n      if (!clean) return;\n      const existing = [...select.options].find(option => normalizeTagKey(option.value) === normalizeTagKey(clean));\n      if (existing) { select.value = existing.value; return; }\n      const option = document.createElement('option'); option.value = clean; option.textContent = clean; select.appendChild(option); select.value = clean;\n    }\n";
-      const oldTypeField = "<div><label>Type</label><input name=\"type\" value=\"${esc(o.type || '')}\"></div>";
-      const newTypeField = "<div><label>Type</label><select name=\"type\" id=\"orgTypeSelect\"><option value=\"\">Select type...</option>${selectOptionsWithCurrent(allOrganizationTypeOptions(o.type || ''), o.type || '')}</select><button class=\"secondary\" type=\"button\" style=\"margin-top:8px;\" onclick=\"addOrgTypeOption()\">Add New Category</button></div>";
-      const geoLegendCssMarker = "    #geoMap {\n";
-      const geoLegendCssBlock = "    .geo-map-layout.legend-hidden { grid-template-columns: 1fr; }\n    .geo-map-layout.legend-hidden .geo-side-panel { display: none; }\n\n";
-      const oldGeoRefreshButton = '<button class="secondary" onclick="renderGeoMap()">Refresh Map</button>';
-      const newGeoRefreshButton = '<button class="secondary" onclick="renderGeoMap()">Refresh Map</button>\n          <button class="secondary" onclick="state.geoLegendVisible = state.geoLegendVisible === false ? true : false; renderGeoMap()">${state.geoLegendVisible === false ? \'Show Legend\' : \'Hide Legend\'}</button>';
-      const oldGeoLayout = '<div class="geo-map-layout">';
-      const newGeoLayout = '<div class="geo-map-layout ${state.geoLegendVisible === false ? \'legend-hidden\' : \'\'}">';
-      const bulkStateMarker = "    let pendingBulkOrgUpdates = [];\n    let selectedBulkOrgFieldKeys = new Set();";
-      const bulkStateReplacement = "    let pendingBulkOrgUpdates = [];\n    let pendingBulkOrgImportRows = [];\n    let pendingBulkOrgImports = [];\n    let selectedBulkOrgFieldKeys = new Set();";
-      const bulkImportCard = "\n\n        <div class=\"card\" style=\"margin-top:16px;\">\n          <h2>Bulk Upload New Organizations</h2>\n          <p class=\"muted\">Upload a CSV of new organization records, preview what will be created, then append them to the existing browser-stored CRM data. Existing records are preserved.</p>\n          <div class=\"notice\"><b>Safety check:</b> This import creates new organization records only. Rows that appear to match an existing organization will be flagged as possible duplicates and skipped by default.</div>\n          <div class=\"form-grid\">\n            <div class=\"full\">\n              <label>CSV file for new organizations</label>\n              <input type=\"file\" accept=\".csv,text/csv\" onchange=\"previewBulkOrgImport(event)\" />\n            </div>\n          </div>\n          <p class=\"muted\" style=\"font-size:13px;\">Uses the same organization fields as manual entry and bulk update: name, type, status, address, city, county, website, phone, email, contacts, latitude, longitude, tags, mission/description, notes, reach fields, and geocode source.</p>\n          <div id=\"bulkOrgImportPreview\" style=\"margin-top:14px;\"></div>\n        </div>";
-      const bulkImportCardMarker = "          <div id=\"bulkOrgUpdatePreview\" style=\"margin-top:14px;\"></div>\n        </div>`;";
-      const bulkImportCardReplacement = "          <div id=\"bulkOrgUpdatePreview\" style=\"margin-top:14px;\"></div>\n        </div>" + bulkImportCard + "`;";
-      const bulkImportFunctions = [
-"    function importedOrgDuplicate(row) {",
-"      const existing = findOrgForBulkRow(row);",
-"      if (existing) return existing;",
-"      const name = normalizeBulkKey(getCsvValue(row, ['Organization Name', 'Name', 'organizationName', 'name']));",
-"      const address = normalizeBulkKey(getCsvValue(row, ['Address', 'Street Address', 'Full Address', 'address']));",
-"      if (!name) return null;",
-"      const matches = state.organizations.filter(o => normalizeBulkKey(o.name) === name);",
-"      if (matches.length === 1 && address && normalizeBulkKey(matches[0].address) === address) return matches[0];",
-"      return null;",
-"    }",
-"",
-"    function buildImportedOrgFromRow(row) {",
-"      const org = { id: uid() };",
-"      organizationBulkFieldCatalog.forEach(field => {",
-"        const value = String(getCsvValue(row, field.aliases) ?? '').trim();",
-"        org[field.key] = value;",
-"      });",
-"      if (!org.status) org.status = 'research only';",
-"      if (!org.county) org.county = 'Fond du Lac';",
-"      return org;",
-"    }",
-"",
-"    function buildBulkOrgImports(rows) {",
-"      return rows.map((row, index) => {",
-"        const org = buildImportedOrgFromRow(row);",
-"        const duplicate = importedOrgDuplicate(row);",
-"        const missingName = !String(org.name || '').trim();",
-"        const importable = !duplicate && !missingName;",
-"        return { index: index + 2, row, org, duplicate, missingName, importable };",
-"      });",
-"    }",
-"",
-"    async function previewBulkOrgImport(event) {",
-"      const file = event.target.files[0];",
-"      if (!file) return;",
-"      const text = await file.text();",
-"      pendingBulkOrgImportRows = csvRowsToObjects(text);",
-"      pendingBulkOrgImports = buildBulkOrgImports(pendingBulkOrgImportRows);",
-"      renderBulkOrgImportPreview();",
-"    }",
-"",
-"    function renderBulkOrgImportPreview() {",
-"      const el = document.getElementById('bulkOrgImportPreview');",
-"      if (!el) return;",
-"      const total = pendingBulkOrgImports.length;",
-"      const importable = pendingBulkOrgImports.filter(item => item.importable).length;",
-"      const duplicate = pendingBulkOrgImports.filter(item => item.duplicate).length;",
-"      const missingName = pendingBulkOrgImports.filter(item => item.missingName).length;",
-"      const detected = detectBulkFields(pendingBulkOrgImportRows);",
-"      const previewItems = pendingBulkOrgImports.slice(0, 100);",
-"      const rowsHtml = previewItems.length ? previewItems.map(item => {",
-"        let status = '<span style=\"color:var(--ok);font-weight:700;\">Ready to import</span>';",
-"        if (item.duplicate) status = '<span style=\"color:var(--warn);font-weight:700;\">Possible duplicate, skipped</span><br><span class=\"muted\">Matches: ' + esc(item.duplicate.name || '') + '</span>';",
-"        if (item.missingName) status = '<span style=\"color:var(--danger);font-weight:700;\">Missing organization name, skipped</span>';",
-"        const fieldSummary = detected.map(field => '<p style=\"margin:0 0 6px\"><b>' + esc(field.label) + ':</b> ' + esc(item.org[field.key] || '(blank)') + '</p>').join('');",
-"        return '<tr>' +",
-"          '<td>' + item.index + '</td>' +",
-"          '<td><b>' + esc(item.org.name || '(blank)') + '</b><br><span class=\"muted\">' + esc(item.org.city || '') + (item.org.type ? ' • ' + esc(item.org.type) : '') + '</span></td>' +",
-"          '<td>' + status + '</td>' +",
-"          '<td>' + (fieldSummary || '<span class=\"muted\">No compatible fields found.</span>') + '</td>' +",
-"        '</tr>';",
-"      }).join('') : '<tr><td colspan=\"4\" class=\"muted\">Choose a CSV file to preview new organization records.</td></tr>';",
-"      el.innerHTML = '<div class=\"geocode-status\" style=\"display:block;\">' +",
-"        '<strong>Preview:</strong> ' + total + ' CSV row' + (total === 1 ? '' : 's') + ', ' + importable + ' ready to import, ' + duplicate + ' possible duplicate' + (duplicate === 1 ? '' : 's') + ', ' + missingName + ' missing name' + (missingName === 1 ? '' : 's') + '.' +",
-"        '</div>' +",
-"        '<div class=\"toolbar\">' +",
-"          '<button class=\"primary\" onclick=\"applyBulkOrgImports()\" ' + (importable ? '' : 'disabled') + '>Import New Organizations</button>' +",
-"          '<button class=\"secondary\" onclick=\"pendingBulkOrgImportRows = []; pendingBulkOrgImports = []; renderBackup();\">Clear Preview</button>' +",
-"        '</div>' +",
-"        '<div class=\"table-wrapper\" style=\"max-height:420px;\"><table><thead><tr><th>CSV Row</th><th>New Organization</th><th>Status</th><th>Fields Detected</th></tr></thead><tbody>' + rowsHtml + '</tbody></table></div>' +",
-"        (pendingBulkOrgImports.length > previewItems.length ? '<p class=\"muted\" style=\"font-size:13px;\">Showing first ' + previewItems.length + ' rows. The full import set will still be applied.</p>' : '');",
-"    }",
-"",
-"    async function applyBulkOrgImports() {",
-"      const imports = pendingBulkOrgImports.filter(item => item.importable);",
-"      if (!imports.length) return alert('No new organization records are ready to import.');",
-"      const ok = confirm('Import ' + imports.length + ' new organization record' + (imports.length === 1 ? '' : 's') + '? Existing CRM records will be preserved. Export a JSON backup first if you have not already.');",
-"      if (!ok) return;",
-"      for (const item of imports) await put('organizations', item.org);",
-"      pendingBulkOrgImportRows = [];",
-"      pendingBulkOrgImports = [];",
-"      await refresh();",
-"      navTo('backup', true);",
-"      alert('Bulk upload complete. Added ' + imports.length + ' new organization record' + (imports.length === 1 ? '' : 's') + '.');",
-"    }",
-""
-      ].join('\n');
-      const openModalMarker = "    function openModal(title, body, onSubmit) {";
-      const coveragePanelFunction = String.raw`function addGapOverlay(map, visibleMappedOrgs) {
-      const aliases = { 'mt calvary': 'mount calvary', 'saint cloud': 'st cloud' };
-      const normalizeCommunity = value => { const key = cleanCityName(value || ''); return aliases[key] || key; };
-      const countyCommunities = [
-        ['fond du lac', 'Fond du Lac'], ['north fond du lac', 'North Fond du Lac'], ['ripon', 'Ripon'], ['waupun', 'Waupun'], ['campbellsport', 'Campbellsport'], ['lomira', 'Lomira'], ['oakfield', 'Oakfield'], ['rosendale', 'Rosendale'], ['brandon', 'Brandon'], ['eden', 'Eden'], ['fairwater', 'Fairwater'], ['mount calvary', 'Mount Calvary'], ['st cloud', 'St. Cloud'], ['malone', 'Malone'], ['taycheedah', 'Taycheedah']
-      ];
-      function orgServesCommunity(org, communityKey) {
-        if (normalizeCommunity(org.city) === communityKey && orgCanMap(org)) return true;
-        const reach = reachBucketLabel(org).toLowerCase();
-        if (reach === 'countywide' || reach === 'regional / multi-county' || reach === 'statewide') return true;
-        return splitCommunities(org.communitiesServed || '').map(normalizeCommunity).includes(communityKey);
-      }
-      const cityFilterKey = normalizeCommunity(state.geoCityFilter || '');
-      const narrowed = !!(state.geoCityFilter || state.geoTagFilter || state.geoStatusFilter || state.geoReachFilter);
-      let rows = countyCommunities.map(([key, label]) => {
-        const serving = visibleMappedOrgs.filter(org => orgServesCommunity(org, key));
-        const local = serving.filter(org => normalizeCommunity(org.city) === key && orgCanMap(org)).length;
-        const broad = serving.filter(org => ['countywide', 'regional / multi-county', 'statewide'].includes(reachBucketLabel(org).toLowerCase())).length;
-        const named = serving.filter(org => splitCommunities(org.communitiesServed || '').map(normalizeCommunity).includes(key)).length;
-        const typeCounts = new Map();
-        serving.forEach(org => { const type = displayTagLabel(firstTag(org)); typeCounts.set(type, (typeCounts.get(type) || 0) + 1); });
-        const typeSummary = [...typeCounts.entries()].sort((a,b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([type, count]) => esc(type) + ': ' + count).join('<br>') || '<span class="muted">None shown</span>';
-        let read = 'Needs verification';
-        if (serving.length && local) read = 'Local presence plus service coverage';
-        else if (serving.length && (broad || named)) read = 'Covered by reach/service area';
-        return { key, label, local, broad, named, total: serving.length, typeSummary, read };
-      });
-      if (cityFilterKey) rows = rows.filter(row => row.key === cityFilterKey);
-      else if (narrowed) rows = rows.filter(row => row.total > 0);
-      const control = L.control({ position: 'bottomleft' });
-      control.onAdd = function () {
-        const div = L.DomUtil.create('div', 'coverage-summary-panel');
-        div.style.background = 'rgba(255,255,255,0.96)'; div.style.border = '1px solid rgba(0,0,0,0.18)'; div.style.borderRadius = '14px'; div.style.boxShadow = '0 2px 12px rgba(0,0,0,0.22)'; div.style.padding = '12px'; div.style.maxWidth = '540px'; div.style.maxHeight = '340px'; div.style.overflow = 'auto'; div.style.fontSize = '12px';
-        const empty = '<div style="padding:8px;color:#646569;">No matching community coverage found for the current filters.</div>';
-        div.innerHTML = '<div style="font-weight:800;font-size:14px;margin-bottom:6px;">Coverage Summary</div><div style="color:#646569;margin-bottom:8px;line-height:1.3;">Based on current filters. Counts local presence, countywide/regional/statewide reach, and named Communities Served.</div>' + (rows.length ? '<table style="border-collapse:collapse;width:100%;background:white;"><thead><tr><th style="text-align:left;border-bottom:1px solid #dadfe1;padding:5px;">Community</th><th style="text-align:left;border-bottom:1px solid #dadfe1;padding:5px;">Coverage</th><th style="text-align:left;border-bottom:1px solid #dadfe1;padding:5px;">Org Types</th><th style="text-align:left;border-bottom:1px solid #dadfe1;padding:5px;">Read</th></tr></thead><tbody>' + rows.map(row => '<tr><td style="border-bottom:1px solid #eee;padding:5px;font-weight:700;">' + esc(row.label) + '</td><td style="border-bottom:1px solid #eee;padding:5px;">Serving orgs: ' + row.total + '<br>Located here: ' + row.local + '<br>Broad-reach orgs: ' + row.broad + '<br>Specifically names this community: ' + row.named + '</td><td style="border-bottom:1px solid #eee;padding:5px;">' + row.typeSummary + '</td><td style="border-bottom:1px solid #eee;padding:5px;">' + esc(row.read) + '</td></tr>').join('') + '</tbody></table>' : empty);
-        L.DomEvent.disableClickPropagation(div); L.DomEvent.disableScrollPropagation(div); return div;
-      };
-      control.addTo(map);
-    }`;
-      function applyCrmPatches(html) {
-        if (!html.includes('const organizationTypeOptions')) html = html.replace(marker, marker + typeOptionsBlock);
-        if (!html.includes('function allOrganizationTypeOptions')) html = html.replace(selectBlankBlock, selectBlankBlock + helperBlock);
-        if (html.includes(oldTypeField)) html = html.replace(oldTypeField, newTypeField);
-        if (html.includes(oldGeoLayout)) html = html.replace(oldGeoLayout, newGeoLayout);
-        if (!html.includes('.geo-map-layout.legend-hidden') && html.includes(geoLegendCssMarker)) html = html.replace(geoLegendCssMarker, geoLegendCssBlock + geoLegendCssMarker);
-        if (!html.includes('Show Legend') && html.includes(oldGeoRefreshButton)) html = html.replace(oldGeoRefreshButton, newGeoRefreshButton);
-        if (!html.includes('pendingBulkOrgImports') && html.includes(bulkStateMarker)) html = html.replace(bulkStateMarker, bulkStateReplacement);
-        if (!html.includes('Bulk Upload New Organizations') && html.includes(bulkImportCardMarker)) html = html.replace(bulkImportCardMarker, bulkImportCardReplacement);
-        if (!html.includes('function previewBulkOrgImport') && html.includes(openModalMarker)) html = html.replace(openModalMarker, bulkImportFunctions + '\n' + openModalMarker);
-        html = html.replace('const isThin = count > 0 && count <= 2;', 'const isThin = false;');
-        html = html.replace('cityFallbackEntries().forEach(city => {', 'cityFallbackEntries().filter(city => [\'fond du lac\',\'north fond du lac\',\'ripon\',\'waupun\',\'campbellsport\',\'lomira\',\'oakfield\',\'rosendale\',\'brandon\',\'eden\',\'fairwater\',\'mount calvary\',\'st cloud\',\'malone\',\'taycheedah\'].includes(city.key)).forEach(city => {');
-        html = html.replace('<button class="primary" onclick="batchGeocodeMissingOrgs()" ${state.geocodeRunning ? \'disabled\' : \'\'}>Try Exact Address Geocoding</button>\n          ', '');
-        html = html.replace('addGapOverlay(map, mappedOrgs);', 'addGapOverlay(map, state.organizations.filter(orgMatchesGeoFilters));');
-        html = html.replace('<label class="checkline"><input type="checkbox" ${state.geoShowGaps ? \'checked\' : \'\'} onchange="state.geoShowGaps = this.checked; renderGeoMap()"> Gap overlay</label>', '<label class="checkline"><input type="checkbox" ${state.geoShowGaps ? \'checked\' : \'\'} onchange="state.geoShowGaps = this.checked; renderGeoMap()"> Coverage Summary</label>');
-        html = html.replace(/function addGapOverlay\(map, visibleMappedOrgs\) \{[\s\S]*?\n    function fdlCountyFallbackBoundary\(\)/, coveragePanelFunction + '\n\n    function fdlCountyFallbackBoundary()');
-        return html;
-      }
-      function openCrm(html) { const delay = Math.max(0, minimumLoaderMs - (Date.now() - startedAt)); setTimeout(function () { document.open(); document.write(applyCrmPatches(html)); document.close(); }, delay); }
+      const workingLoaderUrl = 'https://raw.githubusercontent.com/awilson64-maker/fdl-community-crm/a296e4bcfd79a70f4b525824eb73c09738d9f652/index.html';
       setTimeout(function () { const fallback = document.getElementById('loadingFallback'); if (fallback) fallback.style.display = 'block'; }, 4500);
-      fetch(baseUrl, { cache: 'no-store' }).then(response => { if (!response.ok) throw new Error('Could not load CRM source file.'); return response.text(); }).then(openCrm).catch(error => { document.body.innerHTML = '<main style="font-family: Arial, sans-serif; padding: 32px; color: #282728; max-width: 720px; margin: 40px auto; background:#fff; border-radius:18px;"><h1>CRM could not load</h1><p>The CRM source file could not be loaded from GitHub. Try refreshing in a minute.</p><p style="color:#646569;">' + String(error.message || error) + '</p></main>'; });
+
+      function patchWorkingLoader(loaderHtml) {
+        if (loaderHtml.includes('Service Gap Lens ↗')) return loaderHtml;
+        const hook = '        return html;\n      }\n      function openCrm';
+        const patch = "        if (!html.includes('Service Gap Lens ↗')) {\n" +
+          "          html = html.replace('<button class=\"map-tab ${state.mapMode === \\\'coverage\\\' ? \\\'active\\\' : \\\'\\\'}\" onclick=\"setMapMode(\\\'coverage\\\')\">Coverage Report</button>', '<button class=\"map-tab ${state.mapMode === \\\'coverage\\\' ? \\\'active\\\' : \\\'\\\'}\" onclick=\"setMapMode(\\\'coverage\\\')\">Coverage Report</button>\\n          <button class=\"map-tab\" onclick=\"window.location.href=\\\'census-gap-preview-v3.html\\\'\">Service Gap Lens ↗</button>');\n" +
+          "        }\n" + hook;
+        return loaderHtml.replace(hook, patch);
+      }
+
+      fetch(workingLoaderUrl, { cache: 'no-store' })
+        .then(response => { if (!response.ok) throw new Error('Could not load working CRM loader.'); return response.text(); })
+        .then(loaderHtml => { document.open(); document.write(patchWorkingLoader(loaderHtml)); document.close(); })
+        .catch(error => { document.body.innerHTML = '<main style="font-family: Arial, sans-serif; padding: 32px; color: #282728; max-width: 720px; margin: 40px auto; background:#fff; border-radius:18px;"><h1>CRM could not load</h1><p>The CRM loader could not be loaded from GitHub. Try refreshing in a minute.</p><p style="color:#646569;">' + String(error.message || error) + '</p></main>'; });
     })();
   </script>
 </body>
