@@ -23,6 +23,8 @@ jobs:
           python-version: '3.x'
 
       - name: Build static Census data file
+        env:
+          CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
         run: |
           python - <<'PY'
           import json
@@ -35,6 +37,7 @@ jobs:
           STATE = '55'
           COUNTY = '039'
           OUT_PATH = 'data/fdl-census-tracts.json'
+          CENSUS_API_KEY = os.environ.get('CENSUS_API_KEY', '').strip()
 
           ACS_VARS = [
               'NAME',
@@ -77,14 +80,16 @@ jobs:
               return part / whole * 100
 
           def fetch_acs():
+              if not CENSUS_API_KEY:
+                  raise RuntimeError('Missing CENSUS_API_KEY repository secret. Add it under Settings > Secrets and variables > Actions > New repository secret.')
               last_error = None
               for year in ACS_YEARS:
                   url = (
                       f'https://api.census.gov/data/{year}/acs/acs5?'
-                      f'get={",".join(ACS_VARS)}&for=tract:*&in=state:{STATE}%20county:{COUNTY}'
+                      f'get={",".join(ACS_VARS)}&for=tract:*&in=state:{STATE}%20county:{COUNTY}&key={urllib.parse.quote(CENSUS_API_KEY)}'
                   )
                   try:
-                      print(f'Trying ACS {year}: {url}')
+                      print(f'Trying ACS {year} with API key from repository secret.')
                       rows = read_json(url)
                       headers = rows[0]
                       out = {}
