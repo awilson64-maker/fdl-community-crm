@@ -50,10 +50,17 @@ jobs:
               'B01001_044E', 'B01001_045E', 'B01001_046E', 'B01001_047E', 'B01001_048E', 'B01001_049E'
           ]
 
-          def read_json(url):
+          def read_text(url):
               req = urllib.request.Request(url, headers={'User-Agent': 'fdl-community-crm-census-builder/1.0'})
               with urllib.request.urlopen(req, timeout=60) as response:
-                  return json.loads(response.read().decode('utf-8'))
+                  return response.read().decode('utf-8')
+
+          def read_json(url):
+              text = read_text(url)
+              try:
+                  return json.loads(text)
+              except Exception as exc:
+                  raise RuntimeError(f'Expected JSON but got: {text[:500]}') from exc
 
           def num(value):
               try:
@@ -72,13 +79,12 @@ jobs:
           def fetch_acs():
               last_error = None
               for year in ACS_YEARS:
-                  params = {
-                      'get': ','.join(ACS_VARS),
-                      'for': 'tract:*',
-                      'in': f'state:{STATE} county:{COUNTY}'
-                  }
-                  url = f'https://api.census.gov/data/{year}/acs/acs5?' + urllib.parse.urlencode(params)
+                  url = (
+                      f'https://api.census.gov/data/{year}/acs/acs5?'
+                      f'get={",".join(ACS_VARS)}&for=tract:*&in=state:{STATE}%20county:{COUNTY}'
+                  )
                   try:
+                      print(f'Trying ACS {year}: {url}')
                       rows = read_json(url)
                       headers = rows[0]
                       out = {}
@@ -101,6 +107,7 @@ jobs:
                           }
                       return year, out
                   except Exception as exc:
+                      print(f'ACS {year} failed: {exc}')
                       last_error = exc
               raise RuntimeError(f'Could not fetch ACS data: {last_error}')
 
@@ -113,8 +120,6 @@ jobs:
                   geoid = str(attrs.get('GEOID') or attrs.get('GEOID20') or attrs.get('GEOID10') or '')
                   if not geoid.startswith('55039') or not rings:
                       continue
-                  # ESRI polygon rings are [ [ [x,y], ... ], ... ]. Treat each ring as a polygon.
-                  # Good enough for county tract display; exact holes are not important for this planning overlay.
                   features.append({
                       'type': 'Feature',
                       'properties': {
