@@ -104,21 +104,66 @@ jobs:
                       last_error = exc
               raise RuntimeError(f'Could not fetch ACS data: {last_error}')
 
+          def esri_json_to_geojson(data):
+              features = []
+              for item in data.get('features', []):
+                  attrs = item.get('attributes') or {}
+                  geometry = item.get('geometry') or {}
+                  rings = geometry.get('rings') or []
+                  geoid = str(attrs.get('GEOID') or attrs.get('GEOID20') or attrs.get('GEOID10') or '')
+                  if not geoid.startswith('55039') or not rings:
+                      continue
+                  # ESRI polygon rings are [ [ [x,y], ... ], ... ]. Treat each ring as a polygon.
+                  # Good enough for county tract display; exact holes are not important for this planning overlay.
+                  features.append({
+                      'type': 'Feature',
+                      'properties': {
+                          'GEOID': geoid,
+                          'TRACT': str(attrs.get('TRACT') or attrs.get('TRACTCE') or attrs.get('TRACTCE20') or ''),
+                          'NAME': str(attrs.get('NAME') or attrs.get('BASENAME') or attrs.get('TRACT') or geoid)
+                      },
+                      'geometry': {
+                          'type': 'MultiPolygon',
+                          'coordinates': [[ring] for ring in rings]
+                      }
+                  })
+              return {'type': 'FeatureCollection', 'features': features}
+
+          def normalize_geojson(data):
+              features = []
+              for feature in data.get('features', []):
+                  props = feature.get('properties') or {}
+                  geoid = str(props.get('GEOID') or props.get('GEOID20') or props.get('GEOID10') or '')
+                  if not geoid.startswith('55039'):
+                      continue
+                  props['GEOID'] = geoid
+                  props['NAME'] = str(props.get('NAME') or props.get('BASENAME') or props.get('TRACT') or geoid)
+                  feature['properties'] = props
+                  features.append(feature)
+              return {'type': 'FeatureCollection', 'features': features}
+
           def fetch_tract_shapes():
               last_error = None
               where = urllib.parse.quote("STATE='55' AND COUNTY='039'")
-              for layer in [2, 4, 8]:
-                  url = (
-                      'https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Tracts_Blocks/MapServer/'
-                      f'{layer}/query?where={where}&outFields=GEOID,TRACT,NAME&outSR=4326&f=geojson'
-                  )
-                  try:
-                      data = read_json(url)
-                      features = [f for f in data.get('features', []) if str(f.get('properties', {}).get('GEOID', '')).startswith('55039')]
-                      if features:
-                          return {'type': 'FeatureCollection', 'features': features}
-                  except Exception as exc:
-                      last_error = exc
+              layer_candidates = [2, 4, 8, 6, 14]
+              service_urls = [
+                  'https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Tracts_Blocks/MapServer',
+                  'https://tigerweb.geo.census.gov/arcgis/rest/services/Generalized_ACS2023/Tracts_Blocks/MapServer',
+                  'https://tigerweb.geo.census.gov/arcgis/rest/services/Generalized_ACS2022/Tracts_Blocks/MapServer'
+              ]
+              for service in service_urls:
+                  for layer in layer_candidates:
+                      base = f'{service}/{layer}/query?where={where}&outFields=*&outSR=4326&returnGeometry=true'
+                      for fmt in ['geojson', 'json']:
+                          url = base + f'&f={fmt}'
+                          try:
+                              data = read_json(url)
+                              shapes = normalize_geojson(data) if fmt == 'geojson' else esri_json_to_geojson(data)
+                              if shapes['features']:
+                                  print(f'Using TIGERweb service {service}, layer {layer}, format {fmt}')
+                                  return shapes
+                          except Exception as exc:
+                              last_error = exc
               raise RuntimeError(f'Could not fetch tract shapes: {last_error}')
 
           acs_year, acs_by_geoid = fetch_acs()
