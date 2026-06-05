@@ -31,16 +31,15 @@ jobs:
           old_native = f'<label title="{tooltip}">Need threshold ⓘ</label>'
           old_plain = '<label>Need threshold</label>'
           new_custom = f'<label class="tooltip-label" tabindex="0" data-tooltip="{tooltip}">Need threshold ⓘ</label>'
-          if old_native in html:
-              html = html.replace(old_native, new_custom)
-          elif old_plain in html:
-              html = html.replace(old_plain, new_custom)
-          elif new_custom in html:
-              pass
-          else:
+          html = html.replace(old_native, new_custom)
+          html = html.replace(old_plain, new_custom)
+          html = html.replace(f'<label class="tooltip-label" tabindex="0" title="{tooltip}" data-tooltip="{tooltip}">Need threshold ⓘ</label>', new_custom)
+          html = html.replace(f'<label class="tooltip-label" title="{tooltip}" tabindex="0" data-tooltip="{tooltip}">Need threshold ⓘ</label>', new_custom)
+          html = html.replace(f'<label class="tooltip-label" data-tooltip="{tooltip}" title="{tooltip}" tabindex="0">Need threshold ⓘ</label>', new_custom)
+          if new_custom not in html:
               raise RuntimeError('Could not find Need threshold label to patch.')
           path.write_text(html, encoding='utf-8')
-          print('Patched Need threshold tooltip to appear immediately.')
+          print('Patched Need threshold tooltip and removed native delayed title tooltip.')
           PY
 
       - name: Commit instant tooltip patch
@@ -51,6 +50,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No instant tooltip changes to commit."
           else
-            git commit -m "Make Need threshold tooltip immediate"
+            git commit -m "Remove native delayed Need threshold tooltip"
             git push
           fi
