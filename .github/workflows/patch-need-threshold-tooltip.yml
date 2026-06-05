@@ -1,0 +1,46 @@
+name: Patch Need Threshold Tooltip
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'data/need-threshold-tooltip-trigger.txt'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-tooltip:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Patch tooltip text
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('census-gap-preview-v3.html')
+          html = path.read_text(encoding='utf-8')
+          tooltip = 'This controls how much Census-measured need a tract must show before it can become a Priority Signal. A tract must meet this need threshold and have few nearby matching assets.'
+          old = '<label>Need threshold</label>'
+          new = f'<label title="{tooltip}">Need threshold ⓘ</label>'
+          if new not in html:
+              html = html.replace(old, new)
+              path.write_text(html, encoding='utf-8')
+              print('Added Need threshold tooltip.')
+          else:
+              print('Need threshold tooltip already present.')
+          PY
+
+      - name: Commit tooltip patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add census-gap-preview-v3.html
+          if git diff --cached --quiet; then
+            echo "No tooltip changes to commit."
+          else
+            git commit -m "Add Need threshold hover tooltip"
+            git push
+          fi
