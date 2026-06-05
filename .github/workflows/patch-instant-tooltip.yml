@@ -1,0 +1,61 @@
+name: Patch Instant Need Threshold Tooltip
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'data/instant-tooltip-trigger.txt'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-instant-tooltip:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Patch instant tooltip
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('census-gap-preview-v3.html')
+          html = path.read_text(encoding='utf-8')
+          tooltip = 'This controls how much Census-measured need a tract must show before it can become a Priority Signal. A tract must meet this need threshold and have few nearby matching assets.'
+
+          css = '''
+    .tooltip-label { position:relative; display:inline-block; cursor:help; }
+    .tooltip-label::after { content:attr(data-tooltip); position:absolute; left:0; top:calc(100% + 8px); z-index:3000; width:300px; padding:10px 12px; border-radius:10px; background:#282728; color:white; font-size:12px; font-weight:600; line-height:1.35; box-shadow:0 8px 22px rgba(0,0,0,.24); opacity:0; visibility:hidden; transform:translateY(-2px); transition:opacity .05s linear, transform .05s linear; pointer-events:none; }
+    .tooltip-label:hover::after, .tooltip-label:focus::after { opacity:1; visibility:visible; transform:translateY(0); }
+'''
+          if '.tooltip-label::after' not in html:
+              html = html.replace('    .control label { display:block; font-size:12px; font-weight:800; color:var(--muted); margin:0 0 4px 2px; }\n', '    .control label { display:block; font-size:12px; font-weight:800; color:var(--muted); margin:0 0 4px 2px; }\n' + css)
+
+          old_native = f'<label title="{tooltip}">Need threshold ⓘ</label>'
+          new_custom = f'<label class="tooltip-label" tabindex="0" data-tooltip="{tooltip}">Need threshold ⓘ</label>'
+          old_plain = '<label>Need threshold</label>'
+          if old_native in html:
+              html = html.replace(old_native, new_custom)
+          elif old_plain in html:
+              html = html.replace(old_plain, new_custom)
+          elif new_custom in html:
+              pass
+          else:
+              raise RuntimeError('Could not find Need threshold label to patch.')
+
+          path.write_text(html, encoding='utf-8')
+          print('Patched Need threshold tooltip to appear immediately.')
+          PY
+
+      - name: Commit instant tooltip patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add census-gap-preview-v3.html
+          if git diff --cached --quiet; then
+            echo "No instant tooltip changes to commit."
+          else
+            git commit -m "Make Need threshold tooltip immediate"
+            git push
+          fi
