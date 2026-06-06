@@ -40,7 +40,7 @@
         if (loaderHtml.includes('Service Gap Lens ↗')) return loaderHtml;
         const hook = '        return html;\n      }\n      function openCrm';
         const patch = "        if (!html.includes('Service Gap Lens ↗')) {\n" +
-          "          html = html.replace('<button class=\"map-tab ${state.mapMode === \\\'coverage\\\' ? \\\'active\\\' : \\\'\\\'}\" onclick=\"setMapMode(\\\'coverage\\\')\">Coverage Report</button>', '<button class=\"map-tab ${state.mapMode === \\\'coverage\\\' ? \\\'active\\\' : \\\'\\\'}\" onclick=\"setMapMode(\\\'coverage\\\')\">Coverage Report</button>\n          <button class=\"map-tab\" onclick=\"window.location.href=\\\'census-gap-preview-v3.html\\\'\">Service Gap Lens ↗</button>');\n" +
+          "          html = html.replace('<button class=\"map-tab ${state.mapMode === \\\'coverage\\\' ? \\\'active\\\' : \\\'\\\'}\" onclick=\"setMapMode(\\\'coverage\\\')\">Coverage Report</button>', '<button class=\"map-tab ${state.mapMode === \\\'coverage\\\' ? \\\'active\\\' : \\\'\\\'}\" onclick=\"setMapMode(\\\'coverage\\\')\">Coverage Report</button>\\n          <button class=\"map-tab\" onclick=\"window.location.href=\\\'census-gap-preview-v3.html\\\'\">Service Gap Lens ↗</button>');\n" +
           "        }\n" + hook;
         return loaderHtml.replace(hook, patch);
       }
