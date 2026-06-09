@@ -180,6 +180,8 @@ jobs:
                           out[geoid] = {
                               'geoid': geoid,
                               'name': item.get('NAME', ''),
+                              'population': total_pop,
+                              'B01001_001E': total_pop,
                               'poverty': pct(poverty_count, poverty_base),
                               'income': num(item.get('B19013_001E')),
                               'noVehicle': pct(no_vehicle, households),
