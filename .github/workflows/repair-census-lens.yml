@@ -1,0 +1,47 @@
+name: Repair Census Lens Controls
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/repair-census-lens.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Restore Need Threshold control
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('census-gap-preview-v3.html')
+          html = path.read_text(encoding='utf-8')
+          if 'id="needThresholdSelect"' not in html:
+              marker = '    <div class="control"><label>Service lens</label>'
+              block = '    <div class="control"><div id="needThresholdHelp" class="helper">Ranks tracts against each other and shows the highest-need group.</div><label class="tooltip-label" tabindex="0" data-tooltip="Ranking options compare tracts against each other. Score options use a normalized 0 to 100 need score. Asset options focus on limited mapped services.">Need threshold ⓘ</label><select id="needThresholdSelect" onchange="updateNeedThresholdHelp();renderMap()"><optgroup label="County ranking"><option value="top25">Top 25% highest-need tracts</option><option value="top50">Top 50% highest-need tracts</option></optgroup><optgroup label="Relative need score cutoff"><option value="abs30">Need score 30+</option><option value="abs40">Need score 40+</option><option value="abs50">Need score 50+</option></optgroup><optgroup label="Asset scarcity"><option value="any">Any tract with few matching assets</option><option value="zeroAssets">Any tract with zero matching assets</option></optgroup></select></div>\n'
+              if marker not in html:
+                  raise RuntimeError('Could not find Service lens control marker.')
+              html = html.replace(marker, block + marker, 1)
+              path.write_text(html, encoding='utf-8')
+              print('Restored Need Threshold control.')
+          else:
+              print('Need Threshold control already present.')
+          PY
+
+      - name: Commit repair
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add census-gap-preview-v3.html
+          if git diff --cached --quiet; then
+            echo "No repair needed."
+          else
+            git commit -m "Restore Census lens need threshold control"
+            git push
+          fi
