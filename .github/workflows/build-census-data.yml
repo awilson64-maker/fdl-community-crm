@@ -108,15 +108,6 @@ jobs:
                   out[geoid] = item
               return out
 
-          def normalize_series(rows, keys):
-              vals = [row.get(k) for row in rows.values() for k in keys]
-              vals = [v for v in vals if isinstance(v, (int, float))]
-              if not vals:
-                  return {geoid: None for geoid in rows}
-              mn, mx = min(vals), max(vals)
-              span = max(0.0001, mx - mn)
-              return {geoid: ((sum((row.get(k) or 0) for k in keys) / len(keys)) - mn) / span * 100 for geoid, row in rows.items()}
-
           def add_composites(out):
               metric_keys = ['poverty', 'children', 'childPoverty', 'noVehicle', 'senior', 'rentBurden', 'snap', 'noInternet', 'limitedEnglish']
               ranges = {}
@@ -262,6 +253,7 @@ jobs:
               'generatedAt': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
               'metrics': {
                   'poverty': 'B17001_002E / B17001_001E',
+                  'population': 'B01001_001E',
                   'income': 'B19013_001E',
                   'noVehicle': 'B08201_002E / B08201_001E',
                   'senior': 'B01001 age 65+ cells / B01001_001E',
@@ -288,42 +280,18 @@ jobs:
           print(f'Wrote {OUT_PATH} with {len(shapes["features"])} tracts using ACS {acs_year}.')
           PY
 
-      - name: Patch Service Gap Lens page
+      - name: Preserve Service Gap Lens page
         run: |
-          python - <<'PY'
-          from pathlib import Path
-          path = Path('census-gap-preview-v3.html')
-          html = path.read_text(encoding='utf-8')
-          if 'href="favicon.svg"' not in html:
-              html = html.replace('  <title>Service Gap Lens</title>\n', '  <title>Service Gap Lens</title>\n  <link rel="icon" type="image/svg+xml" href="favicon.svg" />\n')
-          start = '<select id="metricSelect" onchange="renderMap()">'
-          end = '</select></div>\n    <div class="control"><label>Service lens</label>'
-          if start in html and end in html:
-              before, rest = html.split(start, 1)
-              old, after = rest.split(end, 1)
-              new_select = start + '<optgroup label="Direct ACS indicators"><option value="poverty">Poverty rate</option><option value="childPoverty">Child poverty rate</option><option value="familiesPovertyChildren">Families in poverty with children</option><option value="income">Median household income</option><option value="noVehicle">No-vehicle households</option><option value="senior">Age 65+</option><option value="children">Children under 18</option><option value="unemployment">Unemployment rate</option><option value="rentBurden">Rent-burdened renters</option><option value="snap">SNAP households</option><option value="noInternet">No internet access</option><option value="limitedEnglish">Limited-English households</option></optgroup><optgroup label="Composite need scores"><option value="compositePovertyChildren">Poverty + children score</option><option value="compositePovertyNoVehicle">Poverty + no vehicle score</option><option value="compositeSeniorAccess">Senior access score</option><option value="compositeHousingPressure">Housing pressure score</option><option value="compositeDigitalAccess">Digital access score</option><option value="compositeLanguagePoverty">Language + poverty score</option></optgroup>' + end
-              html = before + new_select + after
-          old_metrics_marker = 'const metrics={'
-          old_lenses_marker = 'const lenses={'
-          if old_metrics_marker in html and old_lenses_marker in html:
-              before, rest = html.split(old_metrics_marker, 1)
-              old_metrics, after = rest.split(old_lenses_marker, 1)
-              new_metrics = "const metrics={poverty:{label:'Poverty rate',suffix:'%',inverse:false},childPoverty:{label:'Child poverty rate',suffix:'%',inverse:false},familiesPovertyChildren:{label:'Families in poverty with children',suffix:'%',inverse:false},noVehicle:{label:'No-vehicle households',suffix:'%',inverse:false},senior:{label:'Age 65+',suffix:'%',inverse:false},income:{label:'Median household income',prefix:'$',inverse:true},children:{label:'Children under 18',suffix:'%',inverse:false},unemployment:{label:'Unemployment rate',suffix:'%',inverse:false},rentBurden:{label:'Rent-burdened renters',suffix:'%',inverse:false},snap:{label:'SNAP households',suffix:'%',inverse:false},noInternet:{label:'No internet access',suffix:'%',inverse:false},limitedEnglish:{label:'Limited-English households',suffix:'%',inverse:false},compositePovertyChildren:{label:'Poverty + children score',suffix:' / 100',inverse:false},compositePovertyNoVehicle:{label:'Poverty + no vehicle score',suffix:' / 100',inverse:false},compositeSeniorAccess:{label:'Senior access score',suffix:' / 100',inverse:false},compositeHousingPressure:{label:'Housing pressure score',suffix:' / 100',inverse:false},compositeDigitalAccess:{label:'Digital access score',suffix:' / 100',inverse:false},compositeLanguagePoverty:{label:'Language + poverty score',suffix:' / 100',inverse:false}};\n"
-              html = before + new_metrics + old_lenses_marker + after
-          html = html.replace("function valueForMetric(feature,key){const acs=acsForFeature(feature);return key==='poverty'?acs.poverty:key==='noVehicle'?acs.noVehicle:key==='senior'?acs.senior:acs.income;}", "function valueForMetric(feature,key){const acs=acsForFeature(feature);return acs[key];}")
-          html = html.replace("return metric.prefix?metric.prefix+Math.round(v).toLocaleString():Number(v).toFixed(1)+(metric.suffix||'');", "return metric.prefix?metric.prefix+Math.round(v).toLocaleString():(metric.suffix&&metric.suffix.includes('/ 100')?Number(v).toFixed(0)+metric.suffix:Number(v).toFixed(1)+(metric.suffix||''));")
-          path.write_text(html, encoding='utf-8')
-          print('Patched Service Gap Lens cross-tab and composite layers.')
-          PY
+          echo "The Census data workflow no longer rewrites census-gap-preview-v3.html. Page UI changes are maintained directly in the HTML file."
 
       - name: Commit updated Census data
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/fdl-census-tracts.json census-gap-preview-v3.html
+          git add data/fdl-census-tracts.json
           if git diff --cached --quiet; then
-            echo "No Census data or page changes to commit."
+            echo "No Census data changes to commit."
           else
-            git commit -m "Update static Census tract data and Service Gap Lens indicators"
+            git commit -m "Update static Census tract data"
             git push
           fi
