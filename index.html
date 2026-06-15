@@ -37,12 +37,26 @@
       setTimeout(function () { const fallback = document.getElementById('loadingFallback'); if (fallback) fallback.style.display = 'block'; }, 4500);
 
       function patchWorkingLoader(loaderHtml) {
-        if (loaderHtml.includes('Service Gap Lens ↗')) return loaderHtml;
         const hook = '        return html;\n      }\n      function openCrm';
-        const patch = "        if (!html.includes('Service Gap Lens ↗')) {\n" +
-          "          html = html.replace('<button class=\"map-tab ${state.mapMode === \\\'coverage\\\' ? \\\'active\\\' : \\\'\\\'}\" onclick=\"setMapMode(\\\'coverage\\\')\">Coverage Report</button>', '<button class=\"map-tab ${state.mapMode === \\\'coverage\\\' ? \\\'active\\\' : \\\'\\\'}\" onclick=\"setMapMode(\\\'coverage\\\')\">Coverage Report</button>\\n          <button class=\"map-tab\" onclick=\"window.location.href=\\\'census-gap-preview-v3.html\\\'\">Service Gap Lens ↗</button>');\n" +
-          "        }\n" + hook;
-        return loaderHtml.replace(hook, patch);
+        if (!loaderHtml.includes(hook)) return loaderHtml;
+        let patched = loaderHtml;
+
+        if (!patched.includes('CONVENE type dropdown guard')) {
+          const typeDropdownGuard = "        // CONVENE type dropdown guard\n" +
+            "        if (!html.includes('id=\"orgTypeSelect\"')) {\n" +
+            "          html = html.replace(/<div>\\s*<label>Type<\\/label>\\s*<input\\s+name=\"type\"\\s+value=\"\\$\\{esc\\(o\\.type \\|\\| ''\\)\\}\"\\s*>\\s*<\\/div>/, newTypeField);\n" +
+            "        }\n";
+          patched = patched.replace(hook, typeDropdownGuard + hook);
+        }
+
+        if (!patched.includes('Service Gap Lens ↗')) {
+          const serviceGapPatch = "        if (!html.includes('Service Gap Lens ↗')) {\n" +
+            "          html = html.replace('<button class=\"map-tab ${state.mapMode === \\\'coverage\\\' ? \\\'active\\\' : \\\'\\\'}\" onclick=\"setMapMode(\\\'coverage\\\')\">Coverage Report</button>', '<button class=\"map-tab ${state.mapMode === \\\'coverage\\\' ? \\\'active\\\' : \\\'\\\'}\" onclick=\"setMapMode(\\\'coverage\\\')\">Coverage Report</button>\\n          <button class=\"map-tab\" onclick=\"window.location.href=\\\'census-gap-preview-v3.html\\\'\">Service Gap Lens ↗</button>');\n" +
+            "        }\n";
+          patched = patched.replace(hook, serviceGapPatch + hook);
+        }
+
+        return patched;
       }
 
       fetch(workingLoaderUrl, { cache: 'no-store' })
